@@ -1,6 +1,20 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MAINNET_CONFIG = exports.ALFAJORES_CONFIG = exports.AgentEngine = exports.DecisionEngine = exports.BlockScanner = exports.CeloClient = void 0;
+exports.MAINNET_CONFIG = exports.ALFAJORES_CONFIG = exports.SecureTransactionManager = exports.AlchemyClient = exports.AgentEngine = exports.DecisionEngine = exports.BlockScanner = exports.CeloClient = void 0;
 // Core exports
 var celo_client_1 = require("./celo-client");
 Object.defineProperty(exports, "CeloClient", { enumerable: true, get: function () { return celo_client_1.CeloClient; } });
@@ -10,6 +24,12 @@ var decision_engine_1 = require("./decision-engine");
 Object.defineProperty(exports, "DecisionEngine", { enumerable: true, get: function () { return decision_engine_1.DecisionEngine; } });
 var agent_engine_1 = require("./agent-engine");
 Object.defineProperty(exports, "AgentEngine", { enumerable: true, get: function () { return agent_engine_1.AgentEngine; } });
+var alchemy_client_1 = require("./alchemy-client");
+Object.defineProperty(exports, "AlchemyClient", { enumerable: true, get: function () { return alchemy_client_1.AlchemyClient; } });
+var secure_transaction_manager_1 = require("./secure-transaction-manager");
+Object.defineProperty(exports, "SecureTransactionManager", { enumerable: true, get: function () { return secure_transaction_manager_1.SecureTransactionManager; } });
+// Functional API exports
+__exportStar(require("./functions"), exports);
 // Network configurations
 exports.ALFAJORES_CONFIG = {
     chainId: 44787,

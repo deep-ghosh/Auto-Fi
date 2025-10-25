@@ -3,6 +3,11 @@ export { CeloClient } from "./celo-client";
 export { BlockScanner } from "./event-monitor";
 export { DecisionEngine } from "./decision-engine";
 export { AgentEngine } from "./agent-engine";
+export { AlchemyClient } from "./alchemy-client";
+export { SecureTransactionManager } from "./secure-transaction-manager";
+
+// Functional API exports
+export * from "./functions";
 
 // Type exports
 export type {
@@ -29,6 +34,19 @@ export type {
   GovernanceVote,
   Proposal
 } from "./types";
+
+// Alchemy exports
+export type {
+  AlchemyConfig,
+  TransactionSecurityResult,
+  NFTOperation,
+  NFTMintResult
+} from "./alchemy-client";
+
+export type {
+  SecureTransactionConfig,
+  TransactionApproval
+} from "./secure-transaction-manager";
 
 // Network configurations
 export const ALFAJORES_CONFIG = {

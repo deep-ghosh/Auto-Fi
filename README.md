@@ -1,6 +1,6 @@
 # Celo AI Agent Library
 
-A comprehensive library of AI-powered autonomous agents for Celo blockchain operations, designed as n8n custom nodes for easy integration into automation workflows.
+A comprehensive TypeScript library for building AI-powered autonomous agents on the Celo blockchain. Provides secure transaction management, NFT operations, and intelligent agent capabilities for developers.
 
 ## 🚀 Features
 
@@ -8,7 +8,7 @@ A comprehensive library of AI-powered autonomous agents for Celo blockchain oper
 - **Pre-built Agent Templates**: Treasury Manager, Donation Splitter, Yield Optimizer, NFT Minter, Governance Participant
 - **Celo Blockchain Integration**: Full support for Celo mainnet and Alfajores testnet
 - **Safety & Validation**: Built-in spending limits, whitelist/blacklist, and risk assessment
-- **n8n Integration**: Easy-to-use custom nodes for workflow automation
+- **Developer-Friendly API**: Clean functional interface with TypeScript support
 - **Event Monitoring**: Real-time blockchain event detection and processing
 - **DeFi Protocol Support**: Integration with Moola, Ubeswap, and other Celo DeFi protocols
 
@@ -18,11 +18,10 @@ A comprehensive library of AI-powered autonomous agents for Celo blockchain oper
 /celo-ai-agents/
 ├── packages/
 │   ├── contracts/          # Smart contracts (Solidity)
-│   ├── core/              # Core client library (TypeScript)
-│   └── n8n-nodes/         # n8n custom nodes
-├── contracts/              # Smart contracts
-├── core/                  # Client library
-└── n8n-nodes/            # n8n integration
+│   └── core/              # Main library package (TypeScript)
+├── examples/              # Usage examples
+├── docs/                  # Developer documentation
+└── tests/                 # Integration tests
 ```
 
 ## 🛠️ Installation
@@ -31,20 +30,78 @@ A comprehensive library of AI-powered autonomous agents for Celo blockchain oper
 
 - Node.js 18+ 
 - npm or yarn
-- n8n instance
 - Celo wallet with testnet tokens (for testing)
+- Alchemy API key (for enhanced security features)
 
 ### Install the Package
 
 ```bash
-npm install n8n-nodes-celo-ai-agents
+npm install @celo-ai-agents/core
 ```
 
-### Configure n8n
+### Quick Start
 
-1. Copy the node files to your n8n custom nodes directory
-2. Restart n8n
-3. The nodes will appear in the "Celo AI Agents" category
+```typescript
+import { 
+  createCeloAgent, 
+  analyzeTransactionSecurity, 
+  mintNFT 
+} from '@celo-ai-agents/core';
+
+// Initialize agent
+const agent = createCeloAgent({
+  privateKey: '0x...',
+  network: 'alfajores',
+  alchemyApiKey: 'your-api-key'
+});
+
+// Analyze transaction security
+const security = await analyzeTransactionSecurity({
+  to: '0x...',
+  value: '1000000000000000000'
+});
+
+// Mint NFT
+const nft = await mintNFT({
+  contractAddress: '0x...',
+  recipient: '0x...',
+  metadata: { name: 'My NFT' }
+});
+```
+
+## 🔨 Hardhat Integration
+
+The library includes comprehensive Hardhat integration for smart contract development:
+
+```typescript
+import { 
+  deployHardhatContract, 
+  getContract, 
+  callContractFunction,
+  sendContractTransaction,
+  verifyHardhatContract,
+  getNetworkInfo
+} from '@celo-ai-agents/core';
+
+// Deploy a contract
+const deployment = await deployHardhatContract({
+  network: 'alfajores',
+  privateKey: '0x...',
+  rpcUrl: 'https://alfajores-forno.celo-testnet.org'
+}, 'AgentRegistry', []);
+
+// Interact with deployed contract
+const contract = await getContract(config, 'AgentRegistry', deployment.contractAddress);
+const result = await callContractFunction(config, 'AgentRegistry', address, 'getAgentCount');
+```
+
+**Hardhat Features:**
+- ✅ Contract deployment and interaction
+- ✅ Network configuration for Celo/Alfajores
+- ✅ Contract verification on block explorers
+- ✅ Gas optimization and reporting
+- ✅ Testing integration
+- ✅ TypeScript support
 
 ## 🤖 Available Agents
 

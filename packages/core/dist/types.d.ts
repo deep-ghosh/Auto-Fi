@@ -121,6 +121,7 @@ export interface Proposal {
     againstVotes: bigint;
 }
 export interface TransactionRequest {
+    from?: Address;
     to: Address;
     data: Hex;
     value?: bigint;
@@ -154,7 +155,9 @@ export interface ValidationResult {
     isValid: boolean;
     errors: string[];
     warnings: string[];
+    recommendations: string[];
     riskScore: number;
+    gasEstimate: bigint;
 }
 export interface GasEstimate {
     gasLimit: bigint;

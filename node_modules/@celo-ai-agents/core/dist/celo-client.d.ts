@@ -11,6 +11,7 @@ export declare class CeloClient {
     getBalance(address: Address): Promise<bigint>;
     getTokenBalance(token: Address, address: Address): Promise<bigint>;
     sendNativeToken(to: Address, amount: bigint): Promise<Hash>;
+    sendTransaction(request: TransactionRequest): Promise<Hash>;
     sendToken(token: Address, to: Address, amount: bigint): Promise<Hash>;
     getTransactionHistory(address: Address, fromBlock?: bigint, toBlock?: bigint): Promise<Transaction[]>;
     getTokenTransfers(token: Address, address: Address, fromBlock?: bigint): Promise<TokenTransfer[]>;

@@ -143,6 +143,18 @@ export class CeloClient {
     });
   }
 
+  async sendTransaction(request: TransactionRequest): Promise<Hash> {
+    return await this.walletClient.sendTransaction({
+      to: request.to,
+      value: request.value,
+      data: request.data,
+      gas: request.gasLimit,
+      gasPrice: request.gasPrice,
+      account: await this.walletClient.getAddresses().then(addrs => addrs[0]),
+      chain: this.chain
+    });
+  }
+
   async sendToken(token: Address, to: Address, amount: bigint): Promise<Hash> {
     if (token === this.network.tokens.CELO) {
       return await this.sendNativeToken(to, amount);

@@ -6,12 +6,13 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./AgentRegistry.sol";
 
 contract MasterTradingContract is Ownable, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    enum OrderType { BUY, SELL, REQUEST }
+    enum OrderType { BUY, SELL, REQUEST, NFT_SELL }
     enum OrderStatus { PENDING, FILLED, CANCELLED, EXPIRED }
 
     struct Order {
@@ -23,6 +24,20 @@ contract MasterTradingContract is Ownable, Pausable, ReentrancyGuard {
         uint256 amountOut;
         uint256 minAmountOut;
         OrderType orderType;
+        OrderStatus status;
+        uint256 deadline;
+        uint256 createdAt;
+        string description;
+    }
+
+    struct NFTOrder {
+        uint256 orderId;
+        address trader;
+        address nftContract;
+        uint256 tokenId;
+        address tokenOut;
+        uint256 amountOut;
+        uint256 minAmountOut;
         OrderStatus status;
         uint256 deadline;
         uint256 createdAt;
@@ -43,11 +58,13 @@ contract MasterTradingContract is Ownable, Pausable, ReentrancyGuard {
     AgentRegistry public immutable agentRegistry;
     
     mapping(uint256 => Order) public orders;
+    mapping(uint256 => NFTOrder) public nftOrders;
     mapping(uint256 => Trade) public trades;
     mapping(address => uint256[]) public userOrders;
     mapping(address => uint256[]) public userTrades;
     mapping(address => bool) public authorizedTokens;
     mapping(address => uint256) public tokenFees;
+    mapping(address => bool) public authorizedNFTContracts;
     
     uint256 public nextOrderId = 1;
     uint256 public nextTradeId = 1;
@@ -90,6 +107,30 @@ contract MasterTradingContract is Ownable, Pausable, ReentrancyGuard {
         uint256 amount,
         uint256 price
     );
+
+    event NFTOrderCreated(
+        uint256 indexed orderId,
+        address indexed trader,
+        address indexed nftContract,
+        uint256 tokenId,
+        address tokenOut,
+        uint256 amountOut
+    );
+    
+    event NFTOrderFilled(
+        uint256 indexed orderId,
+        uint256 indexed tradeId,
+        address indexed buyer,
+        address seller,
+        address nftContract,
+        uint256 tokenId,
+        uint256 price
+    );
+    
+    event NFTOrderCancelled(uint256 indexed orderId, address indexed trader);
+    event NFTOrderExpired(uint256 indexed orderId);
+    
+    event NFTContractAuthorized(address indexed nftContract, bool authorized);
 
     constructor(address _agentRegistry) Ownable() {
         agentRegistry = AgentRegistry(_agentRegistry);
@@ -212,6 +253,50 @@ contract MasterTradingContract is Ownable, Pausable, ReentrancyGuard {
         return orderId;
     }
 
+    function createNFTSellOrder(
+        address _nftContract,
+        uint256 _tokenId,
+        address _tokenOut,
+        uint256 _amountOut,
+        uint256 _minAmountOut,
+        uint256 _deadline,
+        string memory _description
+    ) external whenNotPaused nonReentrant returns (uint256) {
+        require(_nftContract != address(0), "Invalid NFT contract");
+        require(_tokenOut != address(0), "Invalid token address");
+        require(_amountOut > 0, "Amount must be positive");
+        require(_minAmountOut > 0, "Min amount must be positive");
+        require(_deadline >= block.timestamp + MIN_DEADLINE, "Deadline too soon");
+        require(_deadline <= block.timestamp + MAX_DEADLINE, "Deadline too far");
+        require(authorizedNFTContracts[_nftContract], "NFT contract not authorized");
+        require(authorizedTokens[_tokenOut], "Token not authorized");
+        require(IERC721(_nftContract).ownerOf(_tokenId) == msg.sender, "Not NFT owner");
+
+        // Transfer NFT to contract
+        IERC721(_nftContract).transferFrom(msg.sender, address(this), _tokenId);
+
+        uint256 orderId = nextOrderId++;
+        
+        nftOrders[orderId] = NFTOrder({
+            orderId: orderId,
+            trader: msg.sender,
+            nftContract: _nftContract,
+            tokenId: _tokenId,
+            tokenOut: _tokenOut,
+            amountOut: _amountOut,
+            minAmountOut: _minAmountOut,
+            status: OrderStatus.PENDING,
+            deadline: _deadline,
+            createdAt: block.timestamp,
+            description: _description
+        });
+
+        userOrders[msg.sender].push(orderId);
+
+        emit NFTOrderCreated(orderId, msg.sender, _nftContract, _tokenId, _tokenOut, _amountOut);
+        return orderId;
+    }
+
     function fillOrder(
         uint256 _orderId,
         uint256 _amount
@@ -267,6 +352,59 @@ contract MasterTradingContract is Ownable, Pausable, ReentrancyGuard {
         return tradeId;
     }
 
+    function fillNFTOrder(
+        uint256 _orderId
+    ) external payable whenNotPaused nonReentrant returns (uint256) {
+        NFTOrder storage nftOrder = nftOrders[_orderId];
+        require(nftOrder.status == OrderStatus.PENDING, "Order not pending");
+        require(block.timestamp <= nftOrder.deadline, "Order expired");
+        require(nftOrder.trader != msg.sender, "Cannot fill own order");
+
+        uint256 tradeId = nextTradeId++;
+        uint256 price = nftOrder.amountOut;
+        uint256 fee = (price * getTokenFee(nftOrder.tokenOut)) / FEE_PRECISION;
+        uint256 netAmount = price - fee;
+
+        // Transfer payment to seller
+        if (nftOrder.tokenOut == address(0)) {
+            require(msg.value >= price, "Insufficient CELO sent");
+            payable(nftOrder.trader).transfer(netAmount);
+            if (fee > 0) {
+                payable(owner()).transfer(fee);
+            }
+        } else {
+            IERC20(nftOrder.tokenOut).safeTransferFrom(msg.sender, address(this), price);
+            IERC20(nftOrder.tokenOut).safeTransfer(nftOrder.trader, netAmount);
+            if (fee > 0) {
+                IERC20(nftOrder.tokenOut).safeTransfer(owner(), fee);
+            }
+        }
+
+        // Transfer NFT to buyer
+        IERC721(nftOrder.nftContract).transferFrom(address(this), msg.sender, nftOrder.tokenId);
+
+        trades[tradeId] = Trade({
+            tradeId: tradeId,
+            orderId: _orderId,
+            buyer: msg.sender,
+            seller: nftOrder.trader,
+            token: nftOrder.tokenOut,
+            amount: 1, // NFT amount is always 1
+            price: price,
+            timestamp: block.timestamp
+        });
+
+        userTrades[msg.sender].push(tradeId);
+        userTrades[nftOrder.trader].push(tradeId);
+
+        nftOrder.status = OrderStatus.FILLED;
+
+        emit NFTOrderFilled(_orderId, tradeId, msg.sender, nftOrder.trader, nftOrder.nftContract, nftOrder.tokenId, price);
+        emit TradeExecuted(tradeId, _orderId, msg.sender, nftOrder.trader, nftOrder.tokenOut, 1, price);
+        
+        return tradeId;
+    }
+
     function cancelOrder(uint256 _orderId) external whenNotPaused nonReentrant {
         Order storage order = orders[_orderId];
         require(order.trader == msg.sender, "Not order owner");
@@ -299,9 +437,40 @@ contract MasterTradingContract is Ownable, Pausable, ReentrancyGuard {
         emit OrderExpired(_orderId);
     }
 
+    function cancelNFTOrder(uint256 _orderId) external whenNotPaused nonReentrant {
+        NFTOrder storage nftOrder = nftOrders[_orderId];
+        require(nftOrder.trader == msg.sender, "Not order owner");
+        require(nftOrder.status == OrderStatus.PENDING, "Order not pending");
+
+        nftOrder.status = OrderStatus.CANCELLED;
+
+        // Return NFT to trader
+        IERC721(nftOrder.nftContract).transferFrom(address(this), msg.sender, nftOrder.tokenId);
+
+        emit NFTOrderCancelled(_orderId, msg.sender);
+    }
+
+    function expireNFTOrder(uint256 _orderId) external {
+        NFTOrder storage nftOrder = nftOrders[_orderId];
+        require(nftOrder.status == OrderStatus.PENDING, "Order not pending");
+        require(block.timestamp > nftOrder.deadline, "Order not expired");
+
+        nftOrder.status = OrderStatus.EXPIRED;
+
+        // Return NFT to trader
+        IERC721(nftOrder.nftContract).transferFrom(address(this), nftOrder.trader, nftOrder.tokenId);
+
+        emit NFTOrderExpired(_orderId);
+    }
+
     function authorizeToken(address _token, bool _authorized) external onlyOwner {
         authorizedTokens[_token] = _authorized;
         emit TokenAuthorized(_token, _authorized);
+    }
+
+    function authorizeNFTContract(address _nftContract, bool _authorized) external onlyOwner {
+        authorizedNFTContracts[_nftContract] = _authorized;
+        emit NFTContractAuthorized(_nftContract, _authorized);
     }
 
     function setTokenFee(address _token, uint256 _fee) external onlyOwner {
@@ -387,6 +556,54 @@ contract MasterTradingContract is Ownable, Pausable, ReentrancyGuard {
         
         for (uint256 i = 1; i < nextOrderId; i++) {
             if (orders[i].status == OrderStatus.PENDING) {
+                pendingOrders[count] = i;
+                count++;
+            }
+        }
+        
+        uint256[] memory result = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            result[i] = pendingOrders[i];
+        }
+        
+        return result;
+    }
+
+    function getNFTOrder(uint256 _orderId) external view returns (
+        uint256 orderId,
+        address trader,
+        address nftContract,
+        uint256 tokenId,
+        address tokenOut,
+        uint256 amountOut,
+        uint256 minAmountOut,
+        OrderStatus status,
+        uint256 deadline,
+        uint256 createdAt,
+        string memory description
+    ) {
+        NFTOrder storage nftOrder = nftOrders[_orderId];
+        return (
+            nftOrder.orderId,
+            nftOrder.trader,
+            nftOrder.nftContract,
+            nftOrder.tokenId,
+            nftOrder.tokenOut,
+            nftOrder.amountOut,
+            nftOrder.minAmountOut,
+            nftOrder.status,
+            nftOrder.deadline,
+            nftOrder.createdAt,
+            nftOrder.description
+        );
+    }
+
+    function getPendingNFTOrders() external view returns (uint256[] memory) {
+        uint256[] memory pendingOrders = new uint256[](nextOrderId - 1);
+        uint256 count = 0;
+        
+        for (uint256 i = 1; i < nextOrderId; i++) {
+            if (nftOrders[i].status == OrderStatus.PENDING) {
                 pendingOrders[count] = i;
                 count++;
             }

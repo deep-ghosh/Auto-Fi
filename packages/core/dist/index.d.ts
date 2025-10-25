@@ -2,7 +2,12 @@ export { CeloClient } from "./celo-client";
 export { BlockScanner } from "./event-monitor";
 export { DecisionEngine } from "./decision-engine";
 export { AgentEngine } from "./agent-engine";
+export { AlchemyClient } from "./alchemy-client";
+export { SecureTransactionManager } from "./secure-transaction-manager";
+export * from "./functions";
 export type { CeloNetworkConfig, AgentInfo, Transaction, TokenTransfer, Event, BlockEvents, TransactionRequest, TransactionReceipt, SimulationResult, ValidationResult, GasEstimate, AgentMemory, Observation, Action, AgentConfig, DecisionResponse, AgentAction, Donation, DonationSplit, YieldPosition, GovernanceVote, Proposal } from "./types";
+export type { AlchemyConfig, TransactionSecurityResult, NFTOperation, NFTMintResult } from "./alchemy-client";
+export type { SecureTransactionConfig, TransactionApproval } from "./secure-transaction-manager";
 export declare const ALFAJORES_CONFIG: {
     chainId: number;
     name: string;

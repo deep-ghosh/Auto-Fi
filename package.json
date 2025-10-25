@@ -4,7 +4,8 @@
   "description": "AI-powered autonomous agents for Celo blockchain operations",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/contracts",
+    "packages/core"
   ],
   "scripts": {
     "build": "npm run build --workspaces",
@@ -14,7 +15,10 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "typescript": "^5.3.0",
-    "ts-node": "^10.9.0"
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "hardhat": "^3.0.9"
   }
 }

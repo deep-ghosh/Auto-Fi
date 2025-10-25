@@ -1,6 +1,24 @@
 import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
-import "@nomicfoundation/hardhat-verify";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -13,6 +31,13 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
+    hardhat: {
+      chainId: 1337,
+    },
+    localhost: {
+      url: "http://127.0.0.1:8545",
+      chainId: 1337,
+    },
     alfajores: {
       url: "https://alfajores-forno.celo-testnet.org",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
@@ -24,33 +49,11 @@ const config: HardhatUserConfig = {
       chainId: 42220,
     },
   },
-  etherscan: {
-    apiKey: {
-      alfajores: process.env.CELOSCAN_API_KEY || "",
-      celo: process.env.CELOSCAN_API_KEY || "",
-    },
-    customChains: [
-      {
-        network: "alfajores",
-        chainId: 44787,
-        urls: {
-          apiURL: "https://api-alfajores.celoscan.io/api",
-          browserURL: "https://alfajores.celoscan.io",
-        },
-      },
-      {
-        network: "celo",
-        chainId: 42220,
-        urls: {
-          apiURL: "https://api.celoscan.io/api",
-          browserURL: "https://celoscan.io",
-        },
-      },
-    ],
-  },
-  gasReporter: {
-    enabled: process.env.REPORT_GAS !== undefined,
-    currency: "USD",
+  paths: {
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts",
   },
 };
 

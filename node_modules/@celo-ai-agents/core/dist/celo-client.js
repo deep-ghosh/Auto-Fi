@@ -114,6 +114,17 @@ class CeloClient {
             chain: this.chain
         });
     }
+    async sendTransaction(request) {
+        return await this.walletClient.sendTransaction({
+            to: request.to,
+            value: request.value,
+            data: request.data,
+            gas: request.gasLimit,
+            gasPrice: request.gasPrice,
+            account: await this.walletClient.getAddresses().then(addrs => addrs[0]),
+            chain: this.chain
+        });
+    }
     async sendToken(token, to, amount) {
         if (token === this.network.tokens.CELO) {
             return await this.sendNativeToken(to, amount);
