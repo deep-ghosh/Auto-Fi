@@ -16,6 +16,13 @@ export interface WalletState {
   balance: string
   network: "mainnet" | "testnet"
   isConnected: boolean
+  tokens: Array<{
+    address: string
+    symbol: string
+    name: string
+    balance: string
+    price?: number | null
+  }>
 }
 
 export interface DashboardState {
@@ -32,6 +39,7 @@ interface Store extends DashboardState {
   connectWallet: (address: string, balance: string) => void
   disconnectWallet: () => void
   switchNetwork: (network: "mainnet" | "testnet") => void
+  updateWalletTokens: (tokens: WalletState["tokens"]) => void
 
   // Automation actions
   addAutomation: (automation: Automation) => void
@@ -54,6 +62,7 @@ const initialState: DashboardState = {
     balance: "0",
     network: "mainnet",
     isConnected: false,
+    tokens: [],
   },
   totalProcessed: "0",
   pendingAlerts: 0,
@@ -73,6 +82,7 @@ export const useStore = create<Store>()(
             balance,
             network: "mainnet",
             isConnected: true,
+            tokens: [],
           },
         }),
 
@@ -83,12 +93,18 @@ export const useStore = create<Store>()(
             balance: "0",
             network: "mainnet",
             isConnected: false,
+            tokens: [],
           },
         }),
 
       switchNetwork: (network) =>
         set((state) => ({
           wallet: { ...state.wallet, network },
+        })),
+
+      updateWalletTokens: (tokens) =>
+        set((state) => ({
+          wallet: { ...state.wallet, tokens },
         })),
 
       addAutomation: (automation) =>
@@ -98,17 +114,23 @@ export const useStore = create<Store>()(
 
       updateAutomation: (id, updates) =>
         set((state) => ({
-          automations: state.automations.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+          automations: state.automations.map((a) =>
+            a.id === id ? { ...a, ...updates } : a
+          ),
         })),
 
       pauseAutomation: (id) =>
         set((state) => ({
-          automations: state.automations.map((a) => (a.id === id ? { ...a, status: "paused" as const } : a)),
+          automations: state.automations.map((a) =>
+            a.id === id ? { ...a, status: "paused" as const } : a
+          ),
         })),
 
       resumeAutomation: (id) =>
         set((state) => ({
-          automations: state.automations.map((a) => (a.id === id ? { ...a, status: "active" as const } : a)),
+          automations: state.automations.map((a) =>
+            a.id === id ? { ...a, status: "active" as const } : a
+          ),
         })),
 
       deleteAutomation: (id) =>
@@ -125,6 +147,6 @@ export const useStore = create<Store>()(
     }),
     {
       name: "celo-automator-store",
-    },
-  ),
+    }
+  )
 )

@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight, Sparkles } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import React, { useState } from "react"
+import { useWallet } from "@/hooks/use-wallet"
+import { useRouter } from "next/navigation"
 
 function HeroCounter({ value, duration = 1.5 }: { value: number; duration?: number }) {
   const [displayValue, setDisplayValue] = React.useState(0)
@@ -33,9 +36,24 @@ function HeroCounter({ value, duration = 1.5 }: { value: number; duration?: numb
   return <span>{displayValue}</span>
 }
 
-import React from "react"
-
 export default function Hero() {
+  const { connect, wallet } = useWallet()
+  const router = useRouter()
+  const [isConnecting, setIsConnecting] = useState(false)
+
+  const handleConnectWallet = async () => {
+    setIsConnecting(true)
+    try {
+      await connect()
+      // Redirect to dashboard after successful connection
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 500)
+    } catch (error) {
+      console.error("Failed to connect wallet:", error)
+      setIsConnecting(false)
+    }
+  }
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -57,7 +75,7 @@ export default function Hero() {
   }
 
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
+    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-linear-to-b from-background via-background to-muted/20">
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
           className="absolute top-20 right-10 w-80 h-80 bg-primary/12 rounded-full blur-3xl"
@@ -105,15 +123,15 @@ export default function Hero() {
 
         <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Link href="/dashboard">
-              <Button
-                size="lg"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground transition-smooth hover-lift group w-full sm:w-auto font-semibold shadow-lg shadow-primary/30 hover:shadow-primary/50 rounded-full"
-              >
-                Connect Wallet
-                <ArrowRight className="ml-2 group-hover:translate-x-1 transition-smooth" size={20} />
-              </Button>
-            </Link>
+            <Button
+              size="lg"
+              onClick={handleConnectWallet}
+              disabled={isConnecting}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground transition-smooth hover-lift group w-full sm:w-auto font-semibold shadow-lg shadow-primary/30 hover:shadow-primary/50 rounded-full"
+            >
+              {isConnecting ? "Connecting..." : "Connect Wallet"}
+              <ArrowRight className="ml-2 group-hover:translate-x-1 transition-smooth" size={20} />
+            </Button>
           </motion.div>
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Link href="/tools">

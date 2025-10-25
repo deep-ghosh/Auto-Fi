@@ -12,10 +12,7 @@ export default function DashboardOverview() {
 
   return (
     <motion.div className="mb-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-      <h1 className="text-4xl font-bold text-foreground mb-2">Dashboard</h1>
-      <p className="text-muted-foreground">Welcome back! Here's your automation overview.</p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
         <StatsCard
           label="Active Automations"
           value={activeCount}
