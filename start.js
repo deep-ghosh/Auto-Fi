@@ -1,17 +1,9 @@
-#!/usr/bin/env node
-
-/**
- * Main entry point for the Celo AI Automation Engine
- * This file starts the system from the root directory
- */
-
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Import and start the automation system from the Backend directory
 import('./Backend/automation-system.js').then(async (module) => {
   const AutomationSystem = module.default;
   
@@ -37,7 +29,6 @@ import('./Backend/automation-system.js').then(async (module) => {
   const automation = new AutomationSystem(config);
   automation.start();
 
-  // Graceful shutdown
   process.on('SIGINT', async () => {
     console.log('\n🛑 Shutting down...');
     await automation.shutdown();

@@ -1,9 +1,3 @@
-/**
- * Complete AI Automation System
- * Combines AI Decision Engine with Enhanced Automation
- * Provides end-to-end natural language to blockchain execution
- */
-
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Database from 'better-sqlite3';
 import express from 'express';
@@ -13,9 +7,27 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
 
+const DEFAULT_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
+const CELO_TOKENS = {
+  CELO: '0x0000000000000000000000000000000000000000',
+  cUSD: '0x765DE816845861e75A25fCA122bb6898B8B1282a',
+  cEUR: '0xD8763CBa276a3738E6DE85b4b3bF5FDed6D6cA73'
+};
+
 export class AutomationSystem {
   constructor(config = {}) {
-    this.config = {
+    this.config = this.mergeConfig(config);
+    this.conversationHistory = new Map();
+    this.functionRegistry = this.createFunctionRegistry();
+    
+    this.initializeAI();
+    this.initializeDatabase();
+    this.initializeBlockchainAPI();
+    this.initializeExpress();
+  }
+
+  mergeConfig(config) {
+    return {
       port: config.port || process.env.PORT || 3001,
       geminiApiKey: config.geminiApiKey || process.env.GEMINI_API_KEY || 'AIzaSyCKFLkomLb78CSBz4FA36VS9Vb789fZ8qc',
       privateKey: config.privateKey || process.env.PRIVATE_KEY,
@@ -31,20 +43,8 @@ export class AutomationSystem {
       enableGasOptimization: process.env.ENABLE_GAS_OPTIMIZATION === 'true',
       ...config
     };
-    
-    // Initialize components
-    this.initializeAI();
-    this.initializeDatabase();
-    this.initializeBlockchainAPI();
-    this.initializeExpress();
-    
-    this.conversationHistory = new Map();
-    this.functionRegistry = this.initializeFunctionRegistry();
   }
 
-  /**
-   * Initialize AI components
-   */
   initializeAI() {
     this.gemini = new GoogleGenerativeAI(this.config.geminiApiKey);
     this.model = this.gemini.getGenerativeModel({ 
@@ -58,25 +58,17 @@ export class AutomationSystem {
     });
   }
 
-  /**
-   * Initialize SQLite database
-   */
   initializeDatabase() {
-    // Ensure data directory exists
     const dataDir = './data';
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
     
     this.db = new Database('./data/automation.db');
-    this.initializeTables();
+    this.createTables();
   }
 
-  /**
-   * Initialize database tables
-   */
-  initializeTables() {
-    // Interactions table
+  createTables() {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS interactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,11 +80,8 @@ export class AutomationSystem {
         reasoning TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         success BOOLEAN DEFAULT 1
-      )
-    `);
-
-    // Function usage analytics
-    this.db.exec(`
+      );
+      
       CREATE TABLE IF NOT EXISTS function_usage (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         function_name TEXT NOT NULL,
@@ -100,305 +89,53 @@ export class AutomationSystem {
         success BOOLEAN DEFAULT 1,
         execution_time INTEGER,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Session management
-    this.db.exec(`
+      );
+      
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
         total_interactions INTEGER DEFAULT 0,
         user_preferences TEXT
-      )
-    `);
-
-    // Create indexes
-    this.db.exec(`
+      );
+      
       CREATE INDEX IF NOT EXISTS idx_interactions_session ON interactions(session_id);
       CREATE INDEX IF NOT EXISTS idx_interactions_timestamp ON interactions(timestamp);
       CREATE INDEX IF NOT EXISTS idx_function_usage_name ON function_usage(function_name);
     `);
   }
 
-  /**
-   * Initialize blockchain API with real blockchain functions
-   */
   initializeBlockchainAPI() {
-    // Import blockchain functions dynamically
     this.blockchainAPI = {
       callFunction: async (functionName, parameters, context) => {
         const startTime = Date.now();
         
         try {
-          console.log(`🔧 Calling blockchain function: ${functionName}`, parameters);
-          
-          // Check if blockchain integration is enabled
           if (!this.config.enableBlockchainIntegration) {
-            console.log('⚠️  Blockchain integration disabled, using mock response');
-            return {
-              success: true,
-              result: `Mock result for ${functionName}`,
-              executionTime: 100,
-              functionName,
-              parameters,
-              timestamp: new Date().toISOString()
-            };
+            return this.createMockResponse(functionName, parameters, 100);
           }
           
-          // Check if real blockchain calls are enabled
           if (!this.config.enableRealBlockchainCalls) {
-            console.log('⚠️  Real blockchain calls disabled, using mock response');
-            return {
-              success: true,
-              result: `Mock result for ${functionName}`,
-              executionTime: 100,
-              functionName,
-              parameters,
-              timestamp: new Date().toISOString()
-            };
+            return this.createMockResponse(functionName, parameters, 100);
           }
           
-          let result;
-          
-          // Validate and fix parameters before calling blockchain functions
-          if (parameters.address) {
-            if (!parameters.address.startsWith('0x')) {
-              console.log(`⚠️  Invalid address format: ${parameters.address}, using default address`);
-              parameters.address = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
-            }
-          } else if (functionName.includes('Balance') || functionName.includes('CELO')) {
-            // Provide default address for balance checks
-            parameters.address = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
-          }
-          
-          // Import and call the appropriate blockchain function
-          switch (functionName) {
-            // Token Operations
-            case 'getTokenBalance':
-              const { getTokenBalance } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const { createCeloAgent } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const client = createCeloAgent({
-                privateKey: this.config.privateKey || '0x0000000000000000000000000000000000000000000000000000000000000000',
-                network: this.config.network,
-                rpcUrl: this.config.rpcUrl
-              });
-              result = await getTokenBalance(client, parameters.address, parameters.tokenAddress);
-              break;
-              
-            case 'getCELOBalance':
-              const { getCELOBalance } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const { createCeloAgent: createCeloAgent2 } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const client2 = createCeloAgent2({
-                privateKey: this.config.privateKey || '0x0000000000000000000000000000000000000000000000000000000000000000',
-                network: this.config.network,
-                rpcUrl: this.config.rpcUrl
-              });
-              result = await getCELOBalance(client2, parameters.address);
-              break;
-              
-            case 'sendCELO':
-              const { sendCELO } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const { createCeloAgent: createCeloAgent3 } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const client3 = createCeloAgent3({
-                privateKey: this.config.privateKey || '0x0000000000000000000000000000000000000000000000000000000000000000',
-                network: this.config.network,
-                rpcUrl: this.config.rpcUrl
-              });
-              result = await sendCELO(client3, parameters.to, parameters.amount);
-              break;
-              
-            case 'sendToken':
-              const { sendToken } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const { createCeloAgent: createCeloAgent4 } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const client4 = createCeloAgent4({
-                privateKey: this.config.privateKey || '0x0000000000000000000000000000000000000000000000000000000000000000',
-                network: this.config.network,
-                rpcUrl: this.config.rpcUrl
-              });
-              result = await sendToken(client4, parameters.tokenAddress, parameters.to, parameters.amount);
-              break;
-              
-            case 'getAllTokenBalances':
-              const { getAllTokenBalances } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const { createCeloAgent: createCeloAgent5 } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const client5 = createCeloAgent5({
-                privateKey: this.config.privateKey || '0x0000000000000000000000000000000000000000000000000000000000000000',
-                network: this.config.network,
-                rpcUrl: this.config.rpcUrl
-              });
-              result = await getAllTokenBalances(client5, parameters.address);
-              break;
-
-            // Security Operations
-            case 'analyzeTransactionSecurity':
-              const { analyzeTransactionSecurity } = await import('../blockchain/packages/core/dist/functions/security-functions.js');
-              result = await analyzeTransactionSecurity({
-                alchemyApiKey: this.config.alchemyApiKey,
-                alchemyPolicyId: this.config.alchemyPolicyId,
-                network: this.config.network,
-                maxRiskScore: this.config.maxRiskScore,
-                requireApproval: this.config.requireApproval,
-                enableSimulation: this.config.enableSimulation,
-                enableGasOptimization: this.config.enableGasOptimization
-              }, parameters.to, BigInt(parameters.value || 0), parameters.data, parameters.from);
-              break;
-              
-            case 'executeSecureTransaction':
-              const { executeSecureTransaction } = await import('../blockchain/packages/core/dist/functions/security-functions.js');
-              const { createCeloAgent: createCeloAgent6 } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const client6 = createCeloAgent6({
-                privateKey: this.config.privateKey || '0x0000000000000000000000000000000000000000000000000000000000000000',
-                network: this.config.network,
-                rpcUrl: this.config.rpcUrl
-              });
-              result = await executeSecureTransaction(client6, {
-                alchemyApiKey: this.config.alchemyApiKey,
-                alchemyPolicyId: this.config.alchemyPolicyId,
-                network: this.config.network,
-                maxRiskScore: this.config.maxRiskScore,
-                requireApproval: this.config.requireApproval,
-                enableSimulation: this.config.enableSimulation,
-                enableGasOptimization: this.config.enableGasOptimization
-              }, parameters.transaction);
-              break;
-              
-            case 'validateTransaction':
-              const { validateTransaction } = await import('../blockchain/packages/core/dist/functions/security-functions.js');
-              result = await validateTransaction({
-                alchemyApiKey: this.config.alchemyApiKey,
-                alchemyPolicyId: this.config.alchemyPolicyId,
-                network: this.config.network,
-                maxRiskScore: this.config.maxRiskScore,
-                requireApproval: this.config.requireApproval,
-                enableSimulation: this.config.enableSimulation,
-                enableGasOptimization: this.config.enableGasOptimization
-              }, parameters.transaction);
-              break;
-              
-            case 'isAddressSafe':
-              const { isAddressSafe } = await import('../blockchain/packages/core/dist/functions/security-functions.js');
-              result = await isAddressSafe({
-                alchemyApiKey: this.config.alchemyApiKey,
-                alchemyPolicyId: this.config.alchemyPolicyId,
-                network: this.config.network,
-                maxRiskScore: this.config.maxRiskScore,
-                requireApproval: this.config.requireApproval,
-                enableSimulation: this.config.enableSimulation,
-                enableGasOptimization: this.config.enableGasOptimization
-              }, parameters.address);
-              break;
-
-            // NFT Operations
-            case 'mintNFT':
-              const { mintNFT } = await import('../blockchain/packages/core/dist/functions/nft-functions.js');
-              const { createCeloAgent: createCeloAgent7 } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const client7 = createCeloAgent7({
-                privateKey: this.config.privateKey || '0x0000000000000000000000000000000000000000000000000000000000000000',
-                network: this.config.network,
-                rpcUrl: this.config.rpcUrl
-              });
-              result = await mintNFT(client7, {
-                alchemyApiKey: this.config.alchemyApiKey,
-                alchemyPolicyId: this.config.alchemyPolicyId,
-                network: this.config.network,
-                maxRiskScore: this.config.maxRiskScore,
-                requireApproval: this.config.requireApproval
-              }, parameters);
-              break;
-              
-            case 'getNFTMetadata':
-              const { getNFTMetadata } = await import('../blockchain/packages/core/dist/functions/nft-functions.js');
-              result = await getNFTMetadata({
-                alchemyApiKey: this.config.alchemyApiKey,
-                alchemyPolicyId: this.config.alchemyPolicyId,
-                network: this.config.network,
-                maxRiskScore: this.config.maxRiskScore,
-                requireApproval: this.config.requireApproval
-              }, parameters.contractAddress, parameters.tokenId);
-              break;
-              
-            case 'getOwnedNFTs':
-              const { getOwnedNFTs } = await import('../blockchain/packages/core/dist/functions/nft-functions.js');
-              result = await getOwnedNFTs({
-                alchemyApiKey: this.config.alchemyApiKey,
-                alchemyPolicyId: this.config.alchemyPolicyId,
-                network: this.config.network,
-                maxRiskScore: this.config.maxRiskScore,
-                requireApproval: this.config.requireApproval
-              }, parameters.address, parameters.contractAddress);
-              break;
-              
-            case 'getNFTTransfers':
-              const { getNFTTransfers } = await import('../blockchain/packages/core/dist/functions/nft-functions.js');
-              result = await getNFTTransfers({
-                alchemyApiKey: this.config.alchemyApiKey,
-                alchemyPolicyId: this.config.alchemyPolicyId,
-                network: this.config.network,
-                maxRiskScore: this.config.maxRiskScore,
-                requireApproval: this.config.requireApproval
-              }, parameters.address, parameters.category);
-              break;
-
-            // Utility Operations
-            case 'estimateGas':
-              const { estimateGas } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const { createCeloAgent: createCeloAgent8 } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const client8 = createCeloAgent8({
-                privateKey: this.config.privateKey || '0x0000000000000000000000000000000000000000000000000000000000000000',
-                network: this.config.network,
-                rpcUrl: this.config.rpcUrl
-              });
-              result = await estimateGas(client8, parameters.to, parameters.value, parameters.data);
-              break;
-              
-            case 'waitForTransaction':
-              const { waitForTransaction } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const { createCeloAgent: createCeloAgent9 } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const client9 = createCeloAgent9({
-                privateKey: this.config.privateKey || '0x0000000000000000000000000000000000000000000000000000000000000000',
-                network: this.config.network,
-                rpcUrl: this.config.rpcUrl
-              });
-              result = await waitForTransaction(client9, parameters.transactionHash);
-              break;
-              
-            case 'getNetworkInfo':
-              const { getNetworkConfig } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const { createCeloAgent: createCeloAgent10 } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
-              const client10 = createCeloAgent10({
-                privateKey: this.config.privateKey || '0x0000000000000000000000000000000000000000000000000000000000000000',
-                network: this.config.network,
-                rpcUrl: this.config.rpcUrl
-              });
-              result = getNetworkConfig(client10);
-              break;
-
-            default:
-              throw new Error(`Unknown function: ${functionName}`);
-          }
-          
-          const executionTime = Date.now() - startTime;
+          this.validateParameters(parameters, functionName);
+          const result = await this.executeBlockchainFunction(functionName, parameters);
           
           return {
             success: true,
             result,
-            executionTime,
+            executionTime: Date.now() - startTime,
             functionName,
             parameters,
             timestamp: new Date().toISOString()
           };
           
         } catch (error) {
-          const executionTime = Date.now() - startTime;
-          
-          console.error(`❌ Blockchain function ${functionName} failed:`, error);
-          
           return {
             success: false,
             error: error.message,
-            executionTime,
+            executionTime: Date.now() - startTime,
             functionName,
             parameters,
             timestamp: new Date().toISOString()
@@ -416,18 +153,124 @@ export class AutomationSystem {
     };
   }
 
-  /**
-   * Initialize Express app
-   */
+  createMockResponse(functionName, parameters, executionTime) {
+    return {
+      success: true,
+      result: `Mock result for ${functionName}`,
+      executionTime,
+      functionName,
+      parameters,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  validateParameters(parameters, functionName) {
+    if (parameters.address && !parameters.address.startsWith('0x')) {
+      parameters.address = DEFAULT_ADDRESS;
+    } else if (functionName.includes('Balance') || functionName.includes('CELO')) {
+      parameters.address = DEFAULT_ADDRESS;
+    }
+  }
+
+  async executeBlockchainFunction(functionName, parameters) {
+    const functionMap = {
+      'getTokenBalance': () => this.callCeloFunction('getTokenBalance', parameters),
+      'getCELOBalance': () => this.callCeloFunction('getCELOBalance', parameters),
+      'sendCELO': () => this.callCeloFunction('sendCELO', parameters),
+      'sendToken': () => this.callCeloFunction('sendToken', parameters),
+      'getAllTokenBalances': () => this.callCeloFunction('getAllTokenBalances', parameters),
+      'analyzeTransactionSecurity': () => this.callSecurityFunction('analyzeTransactionSecurity', parameters),
+      'executeSecureTransaction': () => this.callSecurityFunction('executeSecureTransaction', parameters),
+      'validateTransaction': () => this.callSecurityFunction('validateTransaction', parameters),
+      'isAddressSafe': () => this.callSecurityFunction('isAddressSafe', parameters),
+      'mintNFT': () => this.callNFTFunction('mintNFT', parameters),
+      'getNFTMetadata': () => this.callNFTFunction('getNFTMetadata', parameters),
+      'getOwnedNFTs': () => this.callNFTFunction('getOwnedNFTs', parameters),
+      'getNFTTransfers': () => this.callNFTFunction('getNFTTransfers', parameters),
+      'estimateGas': () => this.callCeloFunction('estimateGas', parameters),
+      'waitForTransaction': () => this.callCeloFunction('waitForTransaction', parameters),
+      'getNetworkInfo': () => this.callCeloFunction('getNetworkInfo', parameters)
+    };
+
+    const functionHandler = functionMap[functionName];
+    if (!functionHandler) {
+      throw new Error(`Unknown function: ${functionName}`);
+    }
+
+    return await functionHandler();
+  }
+
+  async callCeloFunction(functionName, parameters) {
+    const { [functionName]: func, createCeloAgent } = await import('../blockchain/packages/core/dist/functions/celo-functions.js');
+    const client = createCeloAgent({
+      privateKey: this.config.privateKey || '0x0000000000000000000000000000000000000000000000000000000000000000',
+      network: this.config.network,
+      rpcUrl: this.config.rpcUrl
+    });
+    
+    const paramArray = this.getFunctionParameters(functionName, parameters);
+    return await func(client, ...paramArray);
+  }
+
+  async callSecurityFunction(functionName, parameters) {
+    const { [functionName]: func } = await import('../blockchain/packages/core/dist/functions/security-functions.js');
+    const config = {
+      alchemyApiKey: this.config.alchemyApiKey,
+      alchemyPolicyId: this.config.alchemyPolicyId,
+      network: this.config.network,
+      maxRiskScore: this.config.maxRiskScore,
+      requireApproval: this.config.requireApproval,
+      enableSimulation: this.config.enableSimulation,
+      enableGasOptimization: this.config.enableGasOptimization
+    };
+    
+    const paramArray = this.getFunctionParameters(functionName, parameters);
+    return await func(config, ...paramArray);
+  }
+
+  async callNFTFunction(functionName, parameters) {
+    const { [functionName]: func } = await import('../blockchain/packages/core/dist/functions/nft-functions.js');
+    const config = {
+      alchemyApiKey: this.config.alchemyApiKey,
+      alchemyPolicyId: this.config.alchemyPolicyId,
+      network: this.config.network,
+      maxRiskScore: this.config.maxRiskScore,
+      requireApproval: this.config.requireApproval
+    };
+    
+    const paramArray = this.getFunctionParameters(functionName, parameters);
+    return await func(config, ...paramArray);
+  }
+
+  getFunctionParameters(functionName, parameters) {
+    const paramMap = {
+      'getTokenBalance': [parameters.address, parameters.tokenAddress],
+      'getCELOBalance': [parameters.address],
+      'sendCELO': [parameters.to, parameters.amount],
+      'sendToken': [parameters.tokenAddress, parameters.to, parameters.amount],
+      'getAllTokenBalances': [parameters.address],
+      'analyzeTransactionSecurity': [parameters.to, BigInt(parameters.value || 0), parameters.data, parameters.from],
+      'executeSecureTransaction': [parameters.transaction],
+      'validateTransaction': [parameters.transaction],
+      'isAddressSafe': [parameters.address],
+      'mintNFT': [parameters],
+      'getNFTMetadata': [parameters.contractAddress, parameters.tokenId],
+      'getOwnedNFTs': [parameters.address, parameters.contractAddress],
+      'getNFTTransfers': [parameters.address, parameters.category],
+      'estimateGas': [parameters.to, parameters.value, parameters.data],
+      'waitForTransaction': [parameters.transactionHash],
+      'getNetworkInfo': []
+    };
+    
+    return paramMap[functionName] || [];
+  }
+
   initializeExpress() {
     this.app = express();
     this.setupMiddleware();
     this.setupRoutes();
   }
 
-  /**
-   * Setup Express middleware
-   */
   setupMiddleware() {
     this.app.use(helmet());
     this.app.use(cors({
@@ -436,8 +279,8 @@ export class AutomationSystem {
     }));
     
     const limiter = rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // limit each IP to 100 requests per windowMs
+      windowMs: 15 * 60 * 1000,
+      max: 100,
       message: 'Too many requests from this IP, please try again later.'
     });
     this.app.use(limiter);
@@ -446,12 +289,8 @@ export class AutomationSystem {
     this.app.use(express.urlencoded({ extended: true }));
   }
 
-  /**
-   * Initialize function registry
-   */
-  initializeFunctionRegistry() {
+  createFunctionRegistry() {
     return {
-      // Token Operations
       'getTokenBalance': {
         description: 'Get balance of a specific token for an address',
         parameters: ['address', 'tokenAddress'],
@@ -482,8 +321,6 @@ export class AutomationSystem {
         category: 'token',
         apiFunction: 'getAllTokenBalances'
       },
-
-      // Security Operations
       'analyzeTransactionSecurity': {
         description: 'Analyze security of a transaction before execution',
         parameters: ['to', 'value', 'data', 'from'],
@@ -508,8 +345,6 @@ export class AutomationSystem {
         category: 'security',
         apiFunction: 'isAddressSafe'
       },
-
-      // NFT Operations
       'mintNFT': {
         description: 'Mint a new NFT with security checks',
         parameters: ['contractAddress', 'recipient', 'metadata'],
@@ -534,8 +369,6 @@ export class AutomationSystem {
         category: 'nft',
         apiFunction: 'getNFTTransfers'
       },
-
-      // Utility Operations
       'estimateGas': {
         description: 'Estimate gas for a transaction',
         parameters: ['to', 'value', 'data'],
@@ -557,24 +390,14 @@ export class AutomationSystem {
     };
   }
 
-  /**
-   * Process natural language input and convert to API function calls
-   */
   async processNaturalLanguage(input, context = {}) {
     try {
-      console.log('🧠 Processing natural language input...');
-      
-      // Get conversation history for context
       const sessionId = context.sessionId || 'default';
       const history = this.conversationHistory.get(sessionId) || [];
       
-      // Build system prompt with function registry
       const systemPrompt = this.buildSystemPrompt();
-      
-      // Create conversation context
       const conversationContext = this.buildConversationContext(history, context);
       
-      // Generate function calls using Gemini
       let result;
       try {
         const response = await this.model.generateContent([
@@ -585,36 +408,30 @@ export class AutomationSystem {
         
         result = response.response.text();
       } catch (geminiError) {
-        console.log('⚠️  Gemini API error, using mock response:', geminiError.message);
-        // Mock response for testing
         result = JSON.stringify({
           reasoning: "Mock reasoning for testing purposes",
           confidence: 0.95,
           functionCalls: [
             {
               function: "getCELOBalance",
-              parameters: { address: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb" },
+              parameters: { address: DEFAULT_ADDRESS },
               priority: 1
             }
           ]
         });
       }
       
-      // Parse the AI response
       const parsedResult = this.parseAIResponse(result);
       
-      // Store in conversation history
       history.push({
         input,
         output: parsedResult,
         timestamp: new Date().toISOString()
       });
-      this.conversationHistory.set(sessionId, history.slice(-10)); // Keep last 10 interactions
+      this.conversationHistory.set(sessionId, history.slice(-10));
       
-      // Execute the function calls
       const executionResults = await this.executeFunctionCalls(parsedResult.functionCalls, context);
       
-      // Store results in database
       this.storeInteraction({
         sessionId,
         input,
@@ -633,7 +450,6 @@ export class AutomationSystem {
       };
       
     } catch (error) {
-      console.error('❌ AI Decision Engine Error:', error);
       return {
         success: false,
         error: error.message,
@@ -643,9 +459,6 @@ export class AutomationSystem {
     }
   }
 
-  /**
-   * Build system prompt for Gemini
-   */
   buildSystemPrompt() {
     const functionList = Object.entries(this.functionRegistry)
       .map(([name, info]) => 
@@ -686,11 +499,11 @@ Guidelines:
 - Use appropriate token addresses for Celo network
 - Handle multi-step operations by breaking them into sequential function calls
 - Always include error handling and validation
-- If no specific address is provided, use a default valid address: 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+- If no specific address is provided, use a default valid address: ${DEFAULT_ADDRESS}
 - NEVER use placeholder values like "default", "user", or "address" - always use valid Ethereum addresses
 
 Example:
-Input: "Send 100 cUSD to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+Input: "Send 100 cUSD to ${DEFAULT_ADDRESS}"
 Response:
 {
   "reasoning": "User wants to send 100 cUSD tokens. I need to: 1) Validate the recipient address, 2) Check if it's safe, 3) Send the tokens using sendToken function with cUSD contract address",
@@ -699,15 +512,15 @@ Response:
     {
       "function": "isAddressSafe",
       "parameters": {
-        "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        "address": "${DEFAULT_ADDRESS}"
       },
       "priority": 1
     },
     {
       "function": "sendToken",
       "parameters": {
-        "tokenAddress": "0x765DE816845861e75A25fCA122bb6898B8B1282a",
-        "to": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+        "tokenAddress": "${CELO_TOKENS.cUSD}",
+        "to": "${DEFAULT_ADDRESS}",
         "amount": "100000000000000000000"
       },
       "priority": 2
@@ -716,29 +529,18 @@ Response:
 }`;
   }
 
-  /**
-   * Build conversation context
-   */
   buildConversationContext(history, context) {
     return {
       recentInteractions: history.slice(-3),
       currentNetwork: context.network || 'alfajores',
       userPreferences: context.preferences || {},
-      availableTokens: {
-        CELO: '0x0000000000000000000000000000000000000000',
-        cUSD: '0x765DE816845861e75A25fCA122bb6898B8B1282a',
-        cEUR: '0xD8763CBa276a3738E6DE85b4b3bF5FDed6D6cA73'
-      },
+      availableTokens: CELO_TOKENS,
       sessionId: context.sessionId || 'default'
     };
   }
 
-  /**
-   * Parse AI response and extract function calls
-   */
   parseAIResponse(response) {
     try {
-      // Extract JSON from response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('No valid JSON found in AI response');
@@ -746,12 +548,10 @@ Response:
       
       const parsed = JSON.parse(jsonMatch[0]);
       
-      // Validate structure
       if (!parsed.functionCalls || !Array.isArray(parsed.functionCalls)) {
         throw new Error('Invalid function calls structure');
       }
       
-      // Validate each function call
       for (const call of parsed.functionCalls) {
         if (!this.functionRegistry[call.function]) {
           throw new Error(`Unknown function: ${call.function}`);
@@ -760,7 +560,6 @@ Response:
       
       return parsed;
     } catch (error) {
-      console.error('❌ Failed to parse AI response:', error);
       return {
         reasoning: 'Failed to parse AI response',
         confidence: 0.0,
@@ -769,19 +568,12 @@ Response:
     }
   }
 
-  /**
-   * Execute function calls in priority order
-   */
   async executeFunctionCalls(functionCalls, context) {
     const results = [];
-    
-    // Sort by priority
     const sortedCalls = functionCalls.sort((a, b) => (a.priority || 1) - (b.priority || 1));
     
     for (const call of sortedCalls) {
       try {
-        console.log(`🔧 Executing function: ${call.function}`);
-        
         const functionInfo = this.functionRegistry[call.function];
         const result = await this.blockchainAPI.callFunction(
           functionInfo.apiFunction,
@@ -797,14 +589,11 @@ Response:
           timestamp: new Date().toISOString()
         });
         
-        // If this function failed and it's critical, stop execution
         if (!result.success && call.critical) {
-          console.log(`❌ Critical function failed: ${call.function}`);
           break;
         }
         
       } catch (error) {
-        console.error(`❌ Function execution failed: ${call.function}`, error);
         results.push({
           function: call.function,
           parameters: call.parameters,
@@ -818,9 +607,6 @@ Response:
     return results;
   }
 
-  /**
-   * Store interaction in database
-   */
   storeInteraction(data) {
     const stmt = this.db.prepare(`
       INSERT INTO interactions (
@@ -842,11 +628,7 @@ Response:
     );
   }
 
-  /**
-   * Setup API routes
-   */
   setupRoutes() {
-    // Health check
     this.app.get('/health', (req, res) => {
       res.json({
         status: 'healthy',
@@ -860,7 +642,6 @@ Response:
       });
     });
 
-    // Main automation endpoint
     this.app.post('/api/automate', async (req, res) => {
       try {
         const { prompt, context = {} } = req.body;
@@ -872,8 +653,6 @@ Response:
           });
         }
 
-        console.log(`🤖 Processing automation request: ${prompt}`);
-        
         const result = await this.processNaturalLanguage(prompt, {
           sessionId: context.sessionId || req.headers['x-session-id'] || 'default',
           network: context.network || this.config.network,
@@ -888,7 +667,6 @@ Response:
         });
         
       } catch (error) {
-        console.error('❌ Automation error:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -897,7 +675,6 @@ Response:
       }
     });
 
-    // Analytics endpoint
     this.app.get('/api/analytics', async (req, res) => {
       try {
         const { sessionId, days = 30 } = req.query;
@@ -916,7 +693,6 @@ Response:
         });
         
       } catch (error) {
-        console.error('❌ Analytics error:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -925,7 +701,6 @@ Response:
       }
     });
 
-    // Available functions endpoint
     this.app.get('/api/functions', (req, res) => {
       try {
         const functions = this.getAvailableFunctions();
@@ -939,7 +714,6 @@ Response:
         });
         
       } catch (error) {
-        console.error('❌ Functions list error:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -948,9 +722,7 @@ Response:
       }
     });
 
-    // Error handling middleware
     this.app.use((err, req, res, next) => {
-      console.error('API Error:', err);
       res.status(err.status || 500).json({
         success: false,
         error: {
@@ -962,7 +734,6 @@ Response:
       });
     });
 
-    // 404 handler
     this.app.use('*', (req, res) => {
       res.status(404).json({
         success: false,
@@ -975,16 +746,10 @@ Response:
     });
   }
 
-  /**
-   * Get available functions
-   */
   getAvailableFunctions() {
     return Object.keys(this.functionRegistry);
   }
 
-  /**
-   * Get analytics and insights
-   */
   async getAnalytics(sessionId = null) {
     let query = 'SELECT * FROM interactions';
     const params = [];
@@ -999,15 +764,13 @@ Response:
     const stmt = this.db.prepare(query);
     const interactions = stmt.all(...params);
 
-    const analytics = {
+    return {
       totalInteractions: interactions.length,
       successfulCalls: interactions.filter(i => i.success).length,
       mostUsedFunctions: this.getMostUsedFunctions(interactions),
       averageConfidence: this.getAverageConfidence(interactions),
       errorRate: this.getErrorRate(interactions)
     };
-    
-    return analytics;
   }
 
   getMostUsedFunctions(interactions) {
@@ -1041,20 +804,14 @@ Response:
 
   getDatabaseStats() {
     const stats = {};
-    
-    // Get table sizes
     const tables = ['interactions', 'function_usage', 'sessions'];
     tables.forEach(table => {
       const stmt = this.db.prepare(`SELECT COUNT(*) as count FROM ${table}`);
       stats[table] = stmt.get().count;
     });
-    
     return stats;
   }
 
-  /**
-   * Start the automation server
-   */
   start() {
     this.app.listen(this.config.port, () => {
       console.log('🚀 AI Automation System running');
@@ -1071,16 +828,10 @@ Response:
     });
   }
 
-  /**
-   * Process automation request directly (without HTTP)
-   */
   async processAutomation(prompt, context = {}) {
     return await this.processNaturalLanguage(prompt, context);
   }
 
-  /**
-   * Get system status
-   */
   getStatus() {
     return {
       status: 'running',
@@ -1097,9 +848,6 @@ Response:
     };
   }
 
-  /**
-   * Graceful shutdown
-   */
   async shutdown() {
     console.log('🛑 Shutting down AI Automation System...');
     
@@ -1114,7 +862,6 @@ Response:
   }
 }
 
-// CLI execution
 if (import.meta.url === `file://${process.argv[1]}`) {
   const config = {
     port: process.env.PORT || 3001,
@@ -1128,7 +875,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const automation = new AutomationSystem(config);
   automation.start();
 
-  // Graceful shutdown
   process.on('SIGINT', async () => {
     await automation.shutdown();
     process.exit(0);
