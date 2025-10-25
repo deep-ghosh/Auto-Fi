@@ -1,61 +1,86 @@
-# 🪙 n8n Tools & Workflows for Celo Chain
+![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
 
-### Automate Web3 Tasks on the Celo Blockchain Using n8n
+# n8n-nodes-starter
 
-This project provides **ready-to-use tools, nodes, and workflows** for integrating the [Celo Blockchain](https://celo.org) into your **n8n** automation environment.
-It helps developers and organizations build **Web3-native automations** like payments, contract triggers, data fetching, and notifications — without writing complex backend code.
+This starter repository helps you build custom integrations for [n8n](https://n8n.io). It includes example nodes, credentials, the node linter, and all the tooling you need to get started.
 
----
+## Quick Start
 
-## 🚀 Features
+> [!TIP]
+> **New to building n8n nodes?** The fastest way to get started is with `npm create @n8n/node`. This command scaffolds a complete node package for you using the [@n8n/node-cli](https://www.npmjs.com/package/@n8n/node-cli).
 
-* **Smart Contract Interaction** – Call or read from smart contracts on the Celo chain
-* **Wallet Management** – Generate, import, or manage wallets securely
-* **Payment Automation** – Automate cUSD, cEUR, or CELO token transfers
-* **On-Chain Event Triggers** – Listen to contract events and execute n8n workflows
-* **Transaction Monitoring** – Track transaction status and confirmations
-* **Multi-Chain Support (Optional)** – Extendable to other EVM-compatible networks
-* **Web3 Gateway Integration** – Works with RPC providers like Alchemy, Infura, or Celo’s public nodes
-
----
-
-## 🧩 Components
-
-### 1. **Celo API Node (Custom Tool)**
-
-A custom n8n node for performing the following:
-
-* `sendTransaction`
-* `getBalance`
-* `deployContract`
-* `readContract`
-* `subscribeToEvent`
-
-### 2. **Example Workflows**
-
-| Workflow Name               | Description                                                                        |
-| --------------------------- | ---------------------------------------------------------------------------------- |
-| **Auto-Payment Workflow**   | Send cUSD to a wallet address when a webhook is triggered (e.g., new user signup). |
-| **Event Listener Workflow** | Monitor a specific smart contract event (like NFT mint or transfer).               |
-| **Balance Monitor**         | Track wallet balances and alert when below threshold.                              |
-| **Gas Fee Estimator**       | Fetch and log average gas fees for analytics.                                      |
-
----
-
-## ⚙️ Setup Guide
-
-### Prerequisites
-
-* [n8n](https://n8n.io) (Self-hosted or Cloud)
-* Node.js v18+
-* Celo account or wallet (with CELO for gas)
-* RPC endpoint (e.g., `https://forno.celo.org`)
-
-### 1. Clone the Repository
+**To create a new node package from scratch:**
 
 ```bash
-git clone https://github.com/<your-org>/n8n-celo-tools.git
-cd n8n-celo-tools
+npm create @n8n/node
+```
+
+**Already using this starter? Start developing with:**
+
+```bash
+npm run dev
+```
+
+This starts n8n with your nodes loaded and hot reload enabled.
+
+## What's Included
+
+This starter repository includes two example nodes to learn from:
+
+- **[Example Node](nodes/Example/)** - A simple starter node that shows the basic structure with a custom `execute` method
+- **[GitHub Issues Node](nodes/GithubIssues/)** - A complete, production-ready example built using the **declarative style**:
+  - **Low-code approach** - Define operations declaratively without writing request logic
+  - Multiple resources (Issues, Comments)
+  - Multiple operations (Get, Get All, Create)
+  - Two authentication methods (OAuth2 and Personal Access Token)
+  - List search functionality for dynamic dropdowns
+  - Proper error handling and typing
+  - Ideal for HTTP API-based integrations
+
+> [!TIP]
+> The declarative/low-code style (used in GitHub Issues) is the recommended approach for building nodes that interact with HTTP APIs. It significantly reduces boilerplate code and handles requests automatically.
+
+Browse these examples to understand both approaches, then modify them or create your own.
+
+## Finding Inspiration
+
+Looking for more examples? Check out these resources:
+
+- **[npm Community Nodes](https://www.npmjs.com/search?q=keywords:n8n-community-node-package)** - Browse thousands of community-built nodes on npm using the `n8n-community-node-package` tag
+- **[n8n Built-in Nodes](https://github.com/n8n-io/n8n/tree/master/packages/nodes-base/nodes)** - Study the source code of n8n's official nodes for production-ready patterns and best practices
+- **[n8n Credentials](https://github.com/n8n-io/n8n/tree/master/packages/nodes-base/credentials)** - See how authentication is implemented for various services
+
+These are excellent resources to understand how to structure your nodes, handle different API patterns, and implement advanced features.
+
+## Prerequisites
+
+Before you begin, install the following on your development machine:
+
+### Required
+
+- **[Node.js](https://nodejs.org/)** (v22 or higher) and npm
+  - Linux/Mac/WSL: Install via [nvm](https://github.com/nvm-sh/nvm)
+  - Windows: Follow [Microsoft's NodeJS guide](https://learn.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows)
+- **[git](https://git-scm.com/downloads)**
+
+### Recommended
+
+- Follow n8n's [development environment setup guide](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/)
+
+> [!NOTE]
+> The `@n8n/node-cli` is included as a dev dependency and will be installed automatically when you run `npm install`. The CLI includes n8n for local development, so you don't need to install n8n globally.
+
+## Getting Started with this Starter
+
+Follow these steps to create your own n8n community node package:
+
+### 1. Create Your Repository
+
+[Generate a new repository](https://github.com/n8n-io/n8n-nodes-starter/generate) from this template, then clone it:
+
+```bash
+git clone https://github.com/<your-organization>/<your-repo-name>.git
+cd <your-repo-name>
 ```
 
 ### 2. Install Dependencies
@@ -64,121 +89,159 @@ cd n8n-celo-tools
 npm install
 ```
 
-### 3. Add Custom Node to n8n
+This installs all required dependencies including the `@n8n/node-cli`.
 
-In your n8n root folder:
+### 3. Explore the Examples
+
+Browse the example nodes in [nodes/](nodes/) and [credentials/](credentials/) to understand the structure:
+
+- Start with [nodes/Example/](nodes/Example/) for a basic node
+- Study [nodes/GithubIssues/](nodes/GithubIssues/) for a real-world implementation
+
+### 4. Build Your Node
+
+Edit the example nodes to fit your use case, or create new node files by copying the structure from [nodes/Example/](nodes/Example/).
+
+> [!TIP]
+> If you want to scaffold a completely new node package, use `npm create @n8n/node` to start fresh with the CLI's interactive generator.
+
+### 5. Configure Your Package
+
+Update `package.json` with your details:
+
+- `name` - Your package name (must start with `n8n-nodes-`)
+- `author` - Your name and email
+- `repository` - Your repository URL
+- `description` - What your node does
+
+Make sure your node is registered in the `n8n.nodes` array.
+
+### 6. Develop and Test Locally
+
+Start n8n with your node loaded:
 
 ```bash
-n8n-nodes-add ./n8n-celo-tools
+npm run dev
 ```
 
-Or manually copy to:
+This command runs `n8n-node dev` which:
 
-```
-~/.n8n/custom
-```
+- Builds your node with watch mode
+- Starts n8n with your node available
+- Automatically rebuilds when you make changes
+- Opens n8n in your browser (usually http://localhost:5678)
 
-### 4. Configure Environment
+You can now test your node in n8n workflows!
 
-Create a `.env` file:
+> [!NOTE]
+> Learn more about CLI commands in the [@n8n/node-cli documentation](https://www.npmjs.com/package/@n8n/node-cli).
+
+### 7. Lint Your Code
+
+Check for errors:
 
 ```bash
-CELO_RPC_URL=https://forno.celo.org
-PRIVATE_KEY=your_private_key_here
-CELO_CHAIN=mainnet
+npm run lint
 ```
 
-### 5. Start n8n
+Auto-fix issues when possible:
 
 ```bash
-n8n start
+npm run lint:fix
 ```
 
----
+### 8. Build for Production
 
-## 💡 Example Workflow: Auto-Payment
-
-This workflow automatically sends cUSD when a trigger event (like form submission or webhook) occurs.
-
-**Steps:**
-
-1. **Webhook Trigger** → Receive payment request
-2. **Celo Node (Send Transaction)** → Transfer tokens
-3. **Response Node** → Send back transaction hash
-
-**Sample JSON:**
-
-```json
-{
-  "from": "{{env.PRIVATE_KEY}}",
-  "to": "0xReceiverAddress",
-  "amount": "5",
-  "token": "cUSD"
-}
-```
-
----
-
-## 🔔 Event Listening Example
-
-Trigger workflow on a specific contract event (e.g., token mint):
-
-```js
-{
-  "contractAddress": "0x1234...",
-  "eventName": "Transfer",
-  "fromBlock": "latest"
-}
-```
-
-Then chain it with:
-
-* Discord/Telegram alert
-* Database log (PostgreSQL/MySQL)
-* Email or webhook call
-
----
-
-## 🛠️ Development
-
-To modify or extend the Celo node:
+When ready to publish:
 
 ```bash
 npm run build
-npm link
 ```
 
-You can then use it inside your local n8n instance for testing.
+This compiles your TypeScript code to the `dist/` folder.
 
----
+### 9. Prepare for Publishing
 
-## 🧱 Tech Stack
+Before publishing:
 
-* **n8n** (Automation engine)
-* **Node.js + TypeScript** (Node development)
-* **Celo SDK** (`@celo/contractkit`)
-* **Web3.js** for contract interactions
-* **Dotenv** for configuration
+1. **Update documentation**: Replace this README with your node's documentation. Use [README_TEMPLATE.md](README_TEMPLATE.md) as a starting point.
+2. **Update the LICENSE**: Add your details to the [LICENSE](LICENSE.md) file.
+3. **Test thoroughly**: Ensure your node works in different scenarios.
 
----
+### 10. Publish to npm
 
-## 📜 License
+Publish your package to make it available to the n8n community:
 
-This project is licensed under the **MIT License** — you’re free to use, modify, and distribute.
+```bash
+npm publish
+```
 
----
+Learn more about [publishing to npm](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry).
 
-## 🧠 Future Roadmap
+### 11. Submit for Verification (Optional)
 
-* ✅ Add support for Celo Alfajores testnet
-* 🔜 Token swap automation
-* 🔜 NFT mint + transfer workflows
-* 🔜 Analytics dashboard for Celo transactions
-* 🔜 n8n Cloud marketplace integration
+Get your node verified for n8n Cloud:
 
----
+1. Ensure your node meets the [requirements](https://docs.n8n.io/integrations/creating-nodes/deploy/submit-community-nodes/):
+   - Uses MIT license ✅ (included in this starter)
+   - No external package dependencies
+   - Follows n8n's design guidelines
+   - Passes quality and security review
 
-## 👨‍💻 Contributors
+2. Submit through the [n8n Creator Portal](https://creators.n8n.io/nodes)
 
-* **@your-name** – Creator / Maintainer
-* Contributions welcome! Open a PR or start a discussion.
+**Benefits of verification:**
+
+- Available directly in n8n Cloud
+- Discoverable in the n8n nodes panel
+- Verified badge for quality assurance
+- Increased visibility in the n8n community
+
+## Available Scripts
+
+This starter includes several npm scripts to streamline development:
+
+| Script                | Description                                                      |
+| --------------------- | ---------------------------------------------------------------- |
+| `npm run dev`         | Start n8n with your node and watch for changes (runs `n8n-node dev`) |
+| `npm run build`       | Compile TypeScript to JavaScript for production (runs `n8n-node build`) |
+| `npm run build:watch` | Build in watch mode (auto-rebuild on changes)                    |
+| `npm run lint`        | Check your code for errors and style issues (runs `n8n-node lint`) |
+| `npm run lint:fix`    | Automatically fix linting issues when possible (runs `n8n-node lint --fix`) |
+| `npm run release`     | Create a new release (runs `n8n-node release`)                   |
+
+> [!TIP]
+> These scripts use the [@n8n/node-cli](https://www.npmjs.com/package/@n8n/node-cli) under the hood. You can also run CLI commands directly, e.g., `npx n8n-node dev`.
+
+## Troubleshooting
+
+### My node doesn't appear in n8n
+
+1. Make sure you ran `npm install` to install dependencies
+2. Check that your node is listed in `package.json` under `n8n.nodes`
+3. Restart the dev server with `npm run dev`
+4. Check the console for any error messages
+
+### Linting errors
+
+Run `npm run lint:fix` to automatically fix most common issues. For remaining errors, check the [n8n node development guidelines](https://docs.n8n.io/integrations/creating-nodes/).
+
+### TypeScript errors
+
+Make sure you're using Node.js v22 or higher and have run `npm install` to get all type definitions.
+
+## Resources
+
+- **[n8n Node Documentation](https://docs.n8n.io/integrations/creating-nodes/)** - Complete guide to building nodes
+- **[n8n Community Forum](https://community.n8n.io/)** - Get help and share your nodes
+- **[@n8n/node-cli Documentation](https://www.npmjs.com/package/@n8n/node-cli)** - CLI tool reference
+- **[n8n Creator Portal](https://creators.n8n.io/nodes)** - Submit your node for verification
+- **[Submit Community Nodes Guide](https://docs.n8n.io/integrations/creating-nodes/deploy/submit-community-nodes/)** - Verification requirements and process
+
+## Contributing
+
+Have suggestions for improving this starter? [Open an issue](https://github.com/n8n-io/n8n-nodes-starter/issues) or submit a pull request!
+
+## License
+
+[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
