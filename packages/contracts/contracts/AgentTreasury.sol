@@ -54,7 +54,7 @@ contract AgentTreasury is Ownable, Pausable, ReentrancyGuard {
     );
     event TimeLockedWithdrawalExecuted(uint256 indexed timeLockId);
 
-    constructor(address _agentRegistry) Ownable(msg.sender) {
+    constructor(address _agentRegistry) Ownable() {
         agentRegistry = AgentRegistry(_agentRegistry);
     }
 
@@ -77,8 +77,9 @@ contract AgentTreasury is Ownable, Pausable, ReentrancyGuard {
         address _recipient,
         uint256 _amount
     ) external whenNotPaused nonReentrant returns (bool) {
-        require(agentRegistry.agents(_agentId).isActive, "Agent not active");
-        require(agentRegistry.agents(_agentId).agentWallet == msg.sender, "Not agent wallet");
+        (,,,address agentWallet,,,,,bool isActive) = agentRegistry.agents(_agentId);
+        require(isActive, "Agent not active");
+        require(agentWallet == msg.sender, "Not agent wallet");
         require(_amount > 0, "Amount must be positive");
         require(_recipient != address(0), "Invalid recipient");
         require(tokenBalances[_token] >= _amount, "Insufficient treasury balance");
@@ -110,8 +111,9 @@ contract AgentTreasury is Ownable, Pausable, ReentrancyGuard {
         address[] memory _recipients,
         uint256[] memory _amounts
     ) external whenNotPaused nonReentrant returns (bool) {
-        require(agentRegistry.agents(_agentId).isActive, "Agent not active");
-        require(agentRegistry.agents(_agentId).agentWallet == msg.sender, "Not agent wallet");
+        (,,,address agentWallet,,,,,bool isActive) = agentRegistry.agents(_agentId);
+        require(isActive, "Agent not active");
+        require(agentWallet == msg.sender, "Not agent wallet");
         require(_recipients.length == _amounts.length, "Array length mismatch");
         require(_recipients.length > 0, "Empty recipients");
 
@@ -160,8 +162,9 @@ contract AgentTreasury is Ownable, Pausable, ReentrancyGuard {
         uint256 _amount,
         uint256 _unlockTime
     ) external whenNotPaused returns (uint256) {
-        require(agentRegistry.agents(_agentId).isActive, "Agent not active");
-        require(agentRegistry.agents(_agentId).agentWallet == msg.sender, "Not agent wallet");
+        (,,,address agentWallet,,,,,bool isActive) = agentRegistry.agents(_agentId);
+        require(isActive, "Agent not active");
+        require(agentWallet == msg.sender, "Not agent wallet");
         require(_amount > 0, "Amount must be positive");
         require(_recipient != address(0), "Invalid recipient");
         require(tokenBalances[_token] >= _amount, "Insufficient treasury balance");
@@ -194,10 +197,8 @@ contract AgentTreasury is Ownable, Pausable, ReentrancyGuard {
         require(withdrawal.agentId != 0, "Withdrawal not found");
         require(!withdrawal.executed, "Already executed");
         require(block.timestamp >= withdrawal.unlockTime, "Not yet unlocked");
-        require(
-            agentRegistry.agents(withdrawal.agentId).agentWallet == msg.sender,
-            "Not authorized"
-        );
+        (,,,address agentWallet,,,,,bool isActive) = agentRegistry.agents(withdrawal.agentId);
+        require(agentWallet == msg.sender, "Not authorized");
 
         withdrawal.executed = true;
 
@@ -215,10 +216,8 @@ contract AgentTreasury is Ownable, Pausable, ReentrancyGuard {
         require(withdrawal.agentId != 0, "Withdrawal not found");
         require(!withdrawal.executed, "Already executed");
         require(block.timestamp < withdrawal.unlockTime, "Already unlocked");
-        require(
-            agentRegistry.agents(withdrawal.agentId).agentWallet == msg.sender,
-            "Not authorized"
-        );
+        (,,,address agentWallet,,,,,bool isActive) = agentRegistry.agents(withdrawal.agentId);
+        require(agentWallet == msg.sender, "Not authorized");
 
         tokenBalances[withdrawal.token] += withdrawal.amount;
         withdrawal.executed = true;
@@ -240,10 +239,11 @@ contract AgentTreasury is Ownable, Pausable, ReentrancyGuard {
         uint256 lastResetDay,
         uint256 dailyLimit
     ) {
+        (,,,,uint256 agentDailyLimit,,,,) = agentRegistry.agents(_agentId);
         return (
             agentDailyWithdrawn[_agentId],
             agentLastResetDay[_agentId],
-            agentRegistry.agents(_agentId).dailyLimit
+            agentDailyLimit
         );
     }
 

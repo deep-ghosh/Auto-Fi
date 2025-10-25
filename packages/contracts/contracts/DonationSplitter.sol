@@ -66,7 +66,7 @@ contract DonationSplitter is Ownable, Pausable, ReentrancyGuard {
         uint256 threshold
     );
 
-    constructor(address _agentRegistry) Ownable(msg.sender) {
+    constructor(address _agentRegistry) Ownable() {
         agentRegistry = AgentRegistry(_agentRegistry);
     }
 

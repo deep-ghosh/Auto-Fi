@@ -64,7 +64,7 @@ contract AgentRegistry is Ownable, Pausable, ReentrancyGuard {
         bool allowed
     );
 
-    constructor() Ownable(msg.sender) {
+    constructor() Ownable() {
         operationTypes["TRANSFER"] = true;
         operationTypes["SWAP"] = true;
         operationTypes["STAKE"] = true;

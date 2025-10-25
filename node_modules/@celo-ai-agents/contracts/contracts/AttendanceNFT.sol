@@ -57,8 +57,12 @@ contract AttendanceNFT is ERC721, ERC721URIStorage, Ownable, Pausable, Reentranc
         string memory _name,
         string memory _symbol,
         address _agentRegistry
-    ) ERC721(_name, _symbol) Ownable(msg.sender) {
+    ) ERC721(_name, _symbol) Ownable() {
         agentRegistry = AgentRegistry(_agentRegistry);
+    }
+
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
     }
 
     function mintAttendanceNFT(
@@ -67,8 +71,10 @@ contract AttendanceNFT is ERC721, ERC721URIStorage, Ownable, Pausable, Reentranc
         string memory _metadataURI,
         bool _soulbound
     ) external whenNotPaused nonReentrant returns (uint256) {
-        require(agentRegistry.agents(_agentId).isActive, "Agent not active");
-        require(agentRegistry.agents(_agentId).agentWallet == msg.sender, "Not agent wallet");
+        (,,,,,,,,bool isActive) = agentRegistry.agents(_agentId);
+        require(isActive, "Agent not active");
+        (,,,address agentWallet,,,,,) = agentRegistry.agents(_agentId);
+        require(agentWallet == msg.sender, "Not agent wallet");
         require(authorizedMinters[_agentId], "Agent not authorized to mint");
         require(_recipient != address(0), "Invalid recipient");
         require(bytes(_metadataURI).length > 0, "Metadata URI cannot be empty");
@@ -109,8 +115,10 @@ contract AttendanceNFT is ERC721, ERC721URIStorage, Ownable, Pausable, Reentranc
         address[] memory _recipients,
         string[] memory _metadataURIs
     ) external whenNotPaused nonReentrant returns (uint256[] memory) {
-        require(agentRegistry.agents(_agentId).isActive, "Agent not active");
-        require(agentRegistry.agents(_agentId).agentWallet == msg.sender, "Not agent wallet");
+        (,,,,,,,,bool isActive) = agentRegistry.agents(_agentId);
+        require(isActive, "Agent not active");
+        (,,,address agentWallet,,,,,) = agentRegistry.agents(_agentId);
+        require(agentWallet == msg.sender, "Not agent wallet");
         require(authorizedMinters[_agentId], "Agent not authorized to mint");
         require(_recipients.length == _metadataURIs.length, "Array length mismatch");
         require(_recipients.length > 0 && _recipients.length <= MAX_BATCH_SIZE, "Invalid batch size");

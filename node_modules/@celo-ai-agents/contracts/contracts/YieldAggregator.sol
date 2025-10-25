@@ -78,7 +78,7 @@ contract YieldAggregator is Ownable, Pausable, ReentrancyGuard {
         uint256 amount
     );
 
-    constructor(address _agentRegistry) Ownable(msg.sender) {
+    constructor(address _agentRegistry) Ownable() {
         agentRegistry = AgentRegistry(_agentRegistry);
     }
 
@@ -126,8 +126,10 @@ contract YieldAggregator is Ownable, Pausable, ReentrancyGuard {
         address _token,
         uint256 _amount
     ) external whenNotPaused nonReentrant returns (uint256) {
-        require(agentRegistry.agents(_agentId).isActive, "Agent not active");
-        require(agentRegistry.agents(_agentId).agentWallet == msg.sender, "Not agent wallet");
+        (,,,,,,,,bool isActive) = agentRegistry.agents(_agentId);
+        require(isActive, "Agent not active");
+        (,,,address agentWallet,,,,,) = agentRegistry.agents(_agentId);
+        require(agentWallet == msg.sender, "Not agent wallet");
         require(protocols[_protocolId].isActive, "Protocol not active");
         require(_amount > 0, "Amount must be positive");
 
@@ -163,8 +165,10 @@ contract YieldAggregator is Ownable, Pausable, ReentrancyGuard {
         address _token,
         uint256 _shares
     ) external whenNotPaused nonReentrant returns (uint256) {
-        require(agentRegistry.agents(_agentId).isActive, "Agent not active");
-        require(agentRegistry.agents(_agentId).agentWallet == msg.sender, "Not agent wallet");
+        (,,,,,,,,bool isActive) = agentRegistry.agents(_agentId);
+        require(isActive, "Agent not active");
+        (,,,address agentWallet,,,,,) = agentRegistry.agents(_agentId);
+        require(agentWallet == msg.sender, "Not agent wallet");
         require(protocols[_protocolId].isActive, "Protocol not active");
         require(_shares > 0, "Shares must be positive");
 
@@ -197,8 +201,10 @@ contract YieldAggregator is Ownable, Pausable, ReentrancyGuard {
         uint256 _agentId,
         bytes32 _protocolId
     ) external whenNotPaused nonReentrant returns (uint256) {
-        require(agentRegistry.agents(_agentId).isActive, "Agent not active");
-        require(agentRegistry.agents(_agentId).agentWallet == msg.sender, "Not agent wallet");
+        (,,,,,,,,bool isActive) = agentRegistry.agents(_agentId);
+        require(isActive, "Agent not active");
+        (,,,address agentWallet,,,,,) = agentRegistry.agents(_agentId);
+        require(agentWallet == msg.sender, "Not agent wallet");
         require(protocols[_protocolId].isActive, "Protocol not active");
 
         AgentPosition storage position = agentPositions[_agentId][_protocolId];
@@ -229,8 +235,10 @@ contract YieldAggregator is Ownable, Pausable, ReentrancyGuard {
         address _token,
         uint256 _amount
     ) external whenNotPaused nonReentrant {
-        require(agentRegistry.agents(_agentId).isActive, "Agent not active");
-        require(agentRegistry.agents(_agentId).agentWallet == msg.sender, "Not agent wallet");
+        (,,,,,,,,bool isActive) = agentRegistry.agents(_agentId);
+        require(isActive, "Agent not active");
+        (,,,address agentWallet,,,,,) = agentRegistry.agents(_agentId);
+        require(agentWallet == msg.sender, "Not agent wallet");
         require(protocols[_fromProtocol].isActive, "From protocol not active");
         require(protocols[_toProtocol].isActive, "To protocol not active");
         require(_amount > 0, "Amount must be positive");

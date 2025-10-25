@@ -91,7 +91,7 @@ contract MasterTradingContract is Ownable, Pausable, ReentrancyGuard {
         uint256 price
     );
 
-    constructor(address _agentRegistry) Ownable(msg.sender) {
+    constructor(address _agentRegistry) Ownable() {
         agentRegistry = AgentRegistry(_agentRegistry);
     }
 
@@ -138,7 +138,7 @@ contract MasterTradingContract is Ownable, Pausable, ReentrancyGuard {
         uint256 _minAmountOut,
         uint256 _deadline,
         string memory _description
-    ) external whenNotPaused nonReentrant returns (uint256) {
+    ) external payable whenNotPaused nonReentrant returns (uint256) {
         require(_tokenIn != address(0), "Invalid token address");
         require(_amountIn > 0, "Amount must be positive");
         require(_minAmountOut > 0, "Min amount must be positive");
