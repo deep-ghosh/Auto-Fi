@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "./AgentRegistry.sol";
 
-contract AttendanceNFT is ERC721, ERC721URIStorage, Ownable, Pausable, ReentrancyGuard {
+contract AttendanceNFT is Ownable, Pausable, ReentrancyGuard, ERC721, ERC721URIStorage {
+    using SafeERC20 for IERC20;
+
     struct NFTMetadata {
         string name;
         string description;
@@ -18,223 +21,125 @@ contract AttendanceNFT is ERC721, ERC721URIStorage, Ownable, Pausable, Reentranc
         bool soulbound;
         uint256 mintedAt;
     }
-
-    AgentRegistry public immutable agentRegistry;
     
     mapping(uint256 => NFTMetadata) public tokenMetadata;
-    mapping(uint256 => bool) public authorizedMinters;
+    mapping(address => bool) public authorizedMinters;
     mapping(address => uint256[]) public ownerTokens;
     mapping(string => bool) public usedMetadataURIs;
+    mapping(address => uint256) public stakingBalances;
+    mapping(address => uint256) public stakingTimestamps;
+    mapping(address => uint256) public rewardRates;
+    mapping(address => uint256) public lastClaimTime;
+    mapping(address => uint256) public pendingRewards;
     
     uint256 public nextTokenId = 1;
     uint256 public constant MAX_BATCH_SIZE = 100;
-    string public baseURI;
 
-    event NFTMinted(
-        uint256 indexed tokenId,
-        address indexed recipient,
-        string metadataURI,
-        bool soulbound
-    );
-    
-    event BatchMinted(
-        uint256[] tokenIds,
-        address[] recipients,
-        string[] metadataURIs
-    );
-    
-    event MinterAuthorized(
-        uint256 indexed agentId,
-        bool authorized
-    );
-    
-    event MetadataUpdated(
-        uint256 indexed tokenId,
-        string metadataURI
-    );
+    event NFTMinted(uint256 indexed tokenId, address indexed to, string metadataURI);
+    event BatchNFTMinted(uint256[] tokenIds, address indexed to);
+    event Staked(address indexed staker, address indexed token, uint256 amount);
+    event Unstaked(address indexed staker, address indexed token, uint256 amount);
+    event RewardsClaimed(address indexed staker, address indexed token, uint256 amount);
 
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        address _agentRegistry
-    ) ERC721(_name, _symbol) Ownable() {
-        agentRegistry = AgentRegistry(_agentRegistry);
-    }
+    constructor() ERC721("Celo Attendance NFT", "CAN") Ownable() {}
 
-    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
-        super._burn(tokenId);
-    }
-
-    function mintAttendanceNFT(
-        uint256 _agentId,
-        address _recipient,
-        string memory _metadataURI,
-        bool _soulbound
-    ) external whenNotPaused nonReentrant returns (uint256) {
-        (,,,,,,,,bool isActive) = agentRegistry.agents(_agentId);
-        require(isActive, "Agent not active");
-        (,,,address agentWallet,,,,,) = agentRegistry.agents(_agentId);
-        require(agentWallet == msg.sender, "Not agent wallet");
-        require(authorizedMinters[_agentId], "Agent not authorized to mint");
-        require(_recipient != address(0), "Invalid recipient");
-        require(bytes(_metadataURI).length > 0, "Metadata URI cannot be empty");
-        require(!usedMetadataURIs[_metadataURI], "Metadata URI already used");
-
-        require(
-            agentRegistry.isOperationAllowed(_agentId, "MINT_NFT", 0, _recipient),
-            "Mint operation not allowed"
-        );
+    function mintNFT(address _to, string memory _metadataURI, NFTMetadata memory _metadata) external returns (uint256) {
+        require(authorizedMinters[msg.sender] || msg.sender == owner(), "Not authorized minter");
+        require(_to != address(0), "Invalid recipient");
 
         uint256 tokenId = nextTokenId++;
-        
-        _safeMint(_recipient, tokenId);
+        _safeMint(_to, tokenId);
         _setTokenURI(tokenId, _metadataURI);
 
-        tokenMetadata[tokenId] = NFTMetadata({
-            name: "",
-            description: "",
-            image: "",
-            eventName: "",
-            eventDate: 0,
-            soulbound: _soulbound,
-            mintedAt: block.timestamp
-        });
-
-        ownerTokens[_recipient].push(tokenId);
-        
+        tokenMetadata[tokenId] = _metadata;
+        ownerTokens[_to].push(tokenId);
         usedMetadataURIs[_metadataURI] = true;
 
-        agentRegistry.recordAgentAction(_agentId, "MINT_NFT", 1, _recipient);
-
-        emit NFTMinted(tokenId, _recipient, _metadataURI, _soulbound);
+        emit NFTMinted(tokenId, _to, _metadataURI);
         return tokenId;
     }
 
-    function batchMint(
-        uint256 _agentId,
-        address[] memory _recipients,
-        string[] memory _metadataURIs
-    ) external whenNotPaused nonReentrant returns (uint256[] memory) {
-        (,,,,,,,,bool isActive) = agentRegistry.agents(_agentId);
-        require(isActive, "Agent not active");
-        (,,,address agentWallet,,,,,) = agentRegistry.agents(_agentId);
-        require(agentWallet == msg.sender, "Not agent wallet");
-        require(authorizedMinters[_agentId], "Agent not authorized to mint");
-        require(_recipients.length == _metadataURIs.length, "Array length mismatch");
-        require(_recipients.length > 0 && _recipients.length <= MAX_BATCH_SIZE, "Invalid batch size");
+    function batchMintNFTs(address _to, string[] memory _metadataURIs, NFTMetadata[] memory _metadatas) external returns (uint256[] memory) {
+        require(authorizedMinters[msg.sender] || msg.sender == owner(), "Not authorized minter");
+        require(_to != address(0), "Invalid recipient");
+        require(_metadataURIs.length == _metadatas.length, "Array length mismatch");
+        require(_metadataURIs.length <= MAX_BATCH_SIZE, "Batch size too large");
 
-        require(
-            agentRegistry.isOperationAllowed(_agentId, "MINT_NFT", _recipients.length, address(0)),
-            "Batch mint operation not allowed"
-        );
+        uint256[] memory tokenIds = new uint256[](_metadataURIs.length);
 
-        uint256[] memory tokenIds = new uint256[](_recipients.length);
-
-        for (uint256 i = 0; i < _recipients.length; i++) {
-            require(_recipients[i] != address(0), "Invalid recipient");
-            require(bytes(_metadataURIs[i]).length > 0, "Metadata URI cannot be empty");
-            require(!usedMetadataURIs[_metadataURIs[i]], "Metadata URI already used");
-
+        for (uint256 i = 0; i < _metadataURIs.length; i++) {
             uint256 tokenId = nextTokenId++;
-            
-            _safeMint(_recipients[i], tokenId);
+            _safeMint(_to, tokenId);
             _setTokenURI(tokenId, _metadataURIs[i]);
 
-            tokenMetadata[tokenId] = NFTMetadata({
-                name: "",
-                description: "",
-                image: "",
-                eventName: "",
-                eventDate: 0,
-                soulbound: false,
-                mintedAt: block.timestamp
-            });
-
-            ownerTokens[_recipients[i]].push(tokenId);
-            
+            tokenMetadata[tokenId] = _metadatas[i];
+            ownerTokens[_to].push(tokenId);
             usedMetadataURIs[_metadataURIs[i]] = true;
-
             tokenIds[i] = tokenId;
         }
 
-        agentRegistry.recordAgentAction(_agentId, "MINT_NFT", _recipients.length, address(0));
-
-        emit BatchMinted(tokenIds, _recipients, _metadataURIs);
+        emit BatchNFTMinted(tokenIds, _to);
         return tokenIds;
     }
 
-    function setMinterAgent(uint256 _agentId, bool _authorized) external onlyOwner {
-        authorizedMinters[_agentId] = _authorized;
-        emit MinterAuthorized(_agentId, _authorized);
+    function setAuthorizedMinter(address _minter, bool _authorized) external onlyOwner {
+        authorizedMinters[_minter] = _authorized;
     }
 
-    function updateTokenMetadata(
-        uint256 _tokenId,
-        string memory _name,
-        string memory _description,
-        string memory _image,
-        string memory _eventName,
-        uint256 _eventDate
-    ) external {
-        require(_exists(_tokenId), "Token does not exist");
-        require(ownerOf(_tokenId) == msg.sender || msg.sender == owner(), "Not authorized");
-
-        tokenMetadata[_tokenId].name = _name;
-        tokenMetadata[_tokenId].description = _description;
-        tokenMetadata[_tokenId].image = _image;
-        tokenMetadata[_tokenId].eventName = _eventName;
-        tokenMetadata[_tokenId].eventDate = _eventDate;
-    }
-
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId,
-        uint256 batchSize
-    ) internal override {
-        super._beforeTokenTransfer(from, to, tokenId, batchSize);
+    function stake(address _token, uint256 _amount) external {
+        require(_amount > 0, "Amount must be positive");
         
-        if (from != address(0) && to != address(0) && tokenMetadata[tokenId].soulbound) {
-            revert("Soulbound NFT cannot be transferred");
+        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        stakingBalances[_token] += _amount;
+        stakingTimestamps[_token] = block.timestamp;
+        
+        emit Staked(msg.sender, _token, _amount);
+    }
+
+    function unstake(address _token, uint256 _amount) external nonReentrant {
+        require(_amount > 0, "Amount must be positive");
+        require(stakingBalances[_token] >= _amount, "Insufficient staked balance");
+
+        claimRewards(_token);
+        stakingBalances[_token] -= _amount;
+        IERC20(_token).safeTransfer(msg.sender, _amount);
+        
+        emit Unstaked(msg.sender, _token, _amount);
+    }
+
+    function claimRewards(address _token) public {
+        uint256 rewards = calculateRewards(_token);
+        if (rewards > 0) {
+            pendingRewards[_token] = 0;
+            lastClaimTime[_token] = block.timestamp;
+            IERC20(_token).safeTransfer(msg.sender, rewards);
+            emit RewardsClaimed(msg.sender, _token, rewards);
         }
     }
 
-    function getTokenMetadata(uint256 _tokenId) external view returns (
-        string memory name,
-        string memory description,
-        string memory image,
-        string memory eventName,
-        uint256 eventDate,
-        bool soulbound,
-        uint256 mintedAt
-    ) {
-        require(_exists(_tokenId), "Token does not exist");
-        NFTMetadata storage metadata = tokenMetadata[_tokenId];
-        return (
-            metadata.name,
-            metadata.description,
-            metadata.image,
-            metadata.eventName,
-            metadata.eventDate,
-            metadata.soulbound,
-            metadata.mintedAt
-        );
+    function calculateRewards(address _token) public view returns (uint256) {
+        if (stakingBalances[_token] == 0) return 0;
+        
+        uint256 timeStaked = block.timestamp - stakingTimestamps[_token];
+        uint256 baseRewards = (stakingBalances[_token] * rewardRates[_token] * timeStaked) / (365 days * 10000);
+        
+        return baseRewards + pendingRewards[_token];
+    }
+
+    function setRewardRate(address _token, uint256 _rate) external onlyOwner {
+        rewardRates[_token] = _rate;
+    }
+
+    function getTokenMetadata(uint256 _tokenId) external view returns (NFTMetadata memory) {
+        return tokenMetadata[_tokenId];
     }
 
     function getOwnerTokens(address _owner) external view returns (uint256[] memory) {
         return ownerTokens[_owner];
     }
 
-    function getOwnerTokenCount(address _owner) external view returns (uint256) {
-        return ownerTokens[_owner].length;
-    }
-
-    function isAuthorizedMinter(uint256 _agentId) external view returns (bool) {
-        return authorizedMinters[_agentId];
-    }
-
-    function setBaseURI(string memory _baseURI) external onlyOwner {
-        baseURI = _baseURI;
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
     }
 
     function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) {

@@ -24,45 +24,19 @@ contract AgentRegistry is Ownable, Pausable, ReentrancyGuard {
     mapping(uint256 => Agent) public agents;
     mapping(address => uint256[]) public ownerAgents;
     mapping(bytes32 => bool) public operationTypes;
-    
+    mapping(uint256 => uint256) public agentDailyWithdrawn;
+    mapping(uint256 => uint256) public agentLastResetDay;
+
     uint256 public nextAgentId = 1;
     uint256 public constant SECONDS_PER_DAY = 86400;
 
-    event AgentRegistered(
-        uint256 indexed agentId,
-        address indexed owner,
-        string agentType,
-        uint256 dailyLimit,
-        uint256 perTxLimit
-    );
-    
-    event AgentActionExecuted(
-        uint256 indexed agentId,
-        bytes32 indexed actionType,
-        uint256 amount,
-        address recipient
-    );
-    
-    event SpendingLimitExceeded(
-        uint256 indexed agentId,
-        uint256 attempted,
-        uint256 limit
-    );
-    
+    event AgentRegistered(uint256 indexed agentId, address indexed owner, string agentType, uint256 dailyLimit, uint256 perTxLimit);
+    event AgentActionExecuted(uint256 indexed agentId, bytes32 indexed actionType, uint256 amount, address recipient);
+    event SpendingLimitExceeded(uint256 indexed agentId, uint256 attempted, uint256 limit);
     event AgentPaused(uint256 indexed agentId, string reason);
     event AgentUnpaused(uint256 indexed agentId);
-    
-    event PermissionSet(
-        uint256 indexed agentId,
-        bytes32 indexed permission,
-        bool allowed
-    );
-    
-    event WhitelistUpdated(
-        uint256 indexed agentId,
-        address indexed account,
-        bool allowed
-    );
+    event PermissionSet(uint256 indexed agentId, bytes32 indexed permission, bool allowed);
+    event WhitelistUpdated(uint256 indexed agentId, address indexed account, bool allowed);
 
     constructor() Ownable() {
         operationTypes["TRANSFER"] = true;
@@ -74,12 +48,7 @@ contract AgentRegistry is Ownable, Pausable, ReentrancyGuard {
         operationTypes["MINT_NFT"] = true;
     }
 
-    function registerAgent(
-        string memory _agentType,
-        address _agentWallet,
-        uint256 _dailyLimit,
-        uint256 _perTxLimit
-    ) external whenNotPaused returns (uint256) {
+    function registerAgent(string memory _agentType, address _agentWallet, uint256 _dailyLimit, uint256 _perTxLimit) external whenNotPaused returns (uint256) {
         require(_agentWallet != address(0), "Invalid agent wallet");
         require(_dailyLimit > 0, "Daily limit must be positive");
         require(_perTxLimit > 0, "Per-tx limit must be positive");
@@ -99,16 +68,11 @@ contract AgentRegistry is Ownable, Pausable, ReentrancyGuard {
         agent.isActive = true;
 
         ownerAgents[msg.sender].push(agentId);
-
         emit AgentRegistered(agentId, msg.sender, _agentType, _dailyLimit, _perTxLimit);
         return agentId;
     }
 
-    function setAgentPermissions(
-        uint256 _agentId,
-        bytes32[] memory _permissions,
-        bool[] memory _allowed
-    ) external {
+    function setAgentPermissions(uint256 _agentId, bytes32[] memory _permissions, bool[] memory _allowed) external {
         require(agents[_agentId].owner == msg.sender, "Not agent owner");
         require(_permissions.length == _allowed.length, "Array length mismatch");
 
@@ -119,12 +83,7 @@ contract AgentRegistry is Ownable, Pausable, ReentrancyGuard {
         }
     }
 
-    function isOperationAllowed(
-        uint256 _agentId,
-        bytes32 _operation,
-        uint256 _amount,
-        address _recipient
-    ) external view returns (bool) {
+    function isOperationAllowed(uint256 _agentId, bytes32 _operation, uint256 _amount, address _recipient) external view returns (bool) {
         Agent storage agent = agents[_agentId];
         
         if (!agent.isActive) return false;
@@ -136,17 +95,11 @@ contract AgentRegistry is Ownable, Pausable, ReentrancyGuard {
         if (currentDay > agent.lastResetDay) {
             return _amount <= agent.perTxLimit;
         } else {
-            return _amount <= agent.perTxLimit && 
-                   (agent.dailySpent + _amount) <= agent.dailyLimit;
+            return _amount <= agent.perTxLimit && (agent.dailySpent + _amount) <= agent.dailyLimit;
         }
     }
 
-    function recordAgentAction(
-        uint256 _agentId,
-        bytes32 _actionType,
-        uint256 _amount,
-        address _recipient
-    ) external nonReentrant {
+    function recordAgentAction(uint256 _agentId, bytes32 _actionType, uint256 _amount, address _recipient) external nonReentrant {
         require(agents[_agentId].isActive, "Agent not active");
         require(agents[_agentId].agentWallet == msg.sender, "Not agent wallet");
 
@@ -162,15 +115,19 @@ contract AgentRegistry is Ownable, Pausable, ReentrancyGuard {
         require((agent.dailySpent + _amount) <= agent.dailyLimit, "Exceeds daily limit");
 
         agent.dailySpent += _amount;
-        
         emit AgentActionExecuted(_agentId, _actionType, _amount, _recipient);
     }
 
-    function updateLimits(
-        uint256 _agentId,
-        uint256 _dailyLimit,
-        uint256 _perTxLimit
-    ) external {
+    function getAgent(uint256 _agentId) external view returns (uint256 agentId, address owner, string memory agentType, address agentWallet, uint256 dailyLimit, uint256 perTxLimit, uint256 dailySpent, bool isActive) {
+        Agent storage agent = agents[_agentId];
+        return (agent.agentId, agent.owner, agent.agentType, agent.agentWallet, agent.dailyLimit, agent.perTxLimit, agent.dailySpent, agent.isActive);
+    }
+
+    function getOwnerAgents(address _owner) external view returns (uint256[] memory) {
+        return ownerAgents[_owner];
+    }
+
+    function updateLimits(uint256 _agentId, uint256 _dailyLimit, uint256 _perTxLimit) external {
         require(agents[_agentId].owner == msg.sender, "Not agent owner");
         require(_dailyLimit > 0, "Daily limit must be positive");
         require(_perTxLimit > 0, "Per-tx limit must be positive");
@@ -180,21 +137,13 @@ contract AgentRegistry is Ownable, Pausable, ReentrancyGuard {
         agents[_agentId].perTxLimit = _perTxLimit;
     }
 
-    function updateWhitelist(
-        uint256 _agentId,
-        address _account,
-        bool _allowed
-    ) external {
+    function updateWhitelist(uint256 _agentId, address _account, bool _allowed) external {
         require(agents[_agentId].owner == msg.sender, "Not agent owner");
         agents[_agentId].whitelist[_account] = _allowed;
         emit WhitelistUpdated(_agentId, _account, _allowed);
     }
 
-    function updateBlacklist(
-        uint256 _agentId,
-        address _account,
-        bool _blocked
-    ) external {
+    function updateBlacklist(uint256 _agentId, address _account, bool _blocked) external {
         require(agents[_agentId].owner == msg.sender, "Not agent owner");
         agents[_agentId].blacklist[_account] = _blocked;
     }
@@ -209,33 +158,6 @@ contract AgentRegistry is Ownable, Pausable, ReentrancyGuard {
         require(agents[_agentId].owner == msg.sender, "Not agent owner");
         agents[_agentId].isActive = true;
         emit AgentUnpaused(_agentId);
-    }
-
-    function getAgent(uint256 _agentId) external view returns (
-        uint256 agentId,
-        address owner,
-        string memory agentType,
-        address agentWallet,
-        uint256 dailyLimit,
-        uint256 perTxLimit,
-        uint256 dailySpent,
-        bool isActive
-    ) {
-        Agent storage agent = agents[_agentId];
-        return (
-            agent.agentId,
-            agent.owner,
-            agent.agentType,
-            agent.agentWallet,
-            agent.dailyLimit,
-            agent.perTxLimit,
-            agent.dailySpent,
-            agent.isActive
-        );
-    }
-
-    function getOwnerAgents(address _owner) external view returns (uint256[] memory) {
-        return ownerAgents[_owner];
     }
 
     function emergencyPause() external onlyOwner {

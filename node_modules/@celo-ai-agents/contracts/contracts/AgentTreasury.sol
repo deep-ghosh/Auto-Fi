@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "./AgentRegistry.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract AgentTreasury is Ownable, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -20,161 +20,120 @@ contract AgentTreasury is Ownable, Pausable, ReentrancyGuard {
         bool executed;
     }
 
-    AgentRegistry public immutable agentRegistry;
+    struct Order {
+        uint256 orderId;
+        address creator;
+        address tokenIn;
+        address tokenOut;
+        uint256 amountIn;
+        uint256 amountOut;
+        uint256 deadline;
+        bool isFilled;
+        bool isCancelled;
+    }
+
+    struct NFTOrder {
+        uint256 orderId;
+        address creator;
+        address nftContract;
+        uint256 tokenId;
+        address tokenOut;
+        uint256 amountOut;
+        uint256 deadline;
+        bool isFilled;
+        bool isCancelled;
+    }
     
     mapping(address => uint256) public tokenBalances;
     mapping(uint256 => TimeLockedWithdrawal) public timeLockedWithdrawals;
     mapping(uint256 => uint256) public agentDailyWithdrawn;
     mapping(uint256 => uint256) public agentLastResetDay;
+    mapping(uint256 => Order) public orders;
+    mapping(uint256 => NFTOrder) public nftOrders;
+    mapping(address => bool) public authorizedNFTContracts;
     
     uint256 public nextTimeLockId = 1;
+    uint256 public nextOrderId = 1;
     uint256 public constant SECONDS_PER_DAY = 86400;
     uint256 public constant MIN_TIME_LOCK = 1 hours;
     uint256 public constant MAX_TIME_LOCK = 30 days;
+    uint256 public constant MAX_BATCH_SIZE = 100;
+    uint256 public constant FEE_PERCENTAGE = 250;
+    uint256 public constant BASIS_POINTS = 10000;
 
     event Deposit(address indexed token, uint256 amount, address indexed depositor);
-    event AgentWithdrawal(
-        uint256 indexed agentId,
-        address indexed token,
-        address indexed recipient,
-        uint256 amount
-    );
-    event BatchTransfer(
-        uint256 indexed agentId,
-        address indexed token,
-        address[] recipients,
-        uint256[] amounts
-    );
-    event TimeLockedWithdrawalScheduled(
-        uint256 indexed timeLockId,
-        uint256 indexed agentId,
-        address indexed token,
-        uint256 amount,
-        uint256 unlockTime
-    );
-    event TimeLockedWithdrawalExecuted(uint256 indexed timeLockId);
+    event AgentWithdrawal(uint256 indexed agentId, address indexed token, address indexed recipient, uint256 amount);
+    event BatchTransfer(uint256 indexed agentId, address indexed token, address[] recipients, uint256[] amounts);
+    event TimeLockedWithdrawalScheduled(uint256 indexed timeLockId, uint256 indexed agentId, address indexed token, uint256 amount, uint256 unlockTime);
+    event TimeLockedWithdrawalExecuted(uint256 indexed timeLockId, uint256 indexed agentId, address indexed token, uint256 amount);
+    event OrderCreated(uint256 indexed orderId, address indexed creator, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
+    event OrderFilled(uint256 indexed orderId, address indexed filler, uint256 amountIn, uint256 amountOut);
+    event OrderCancelled(uint256 indexed orderId, address indexed creator);
+    event NFTOrderCreated(uint256 indexed orderId, address indexed creator, address nftContract, uint256 tokenId, address tokenOut, uint256 amountOut);
+    event NFTOrderFilled(uint256 indexed orderId, address indexed filler, address nftContract, uint256 tokenId, uint256 amountOut);
+    event NFTOrderCancelled(uint256 indexed orderId, address indexed creator);
+    event NFTOrderExpired(uint256 indexed orderId);
+    event NFTContractAuthorized(address indexed nftContract, bool authorized);
 
-    constructor(address _agentRegistry) Ownable() {
-        agentRegistry = AgentRegistry(_agentRegistry);
-    }
+    constructor() Ownable() {}
 
-    function deposit(address _token, uint256 _amount) external payable whenNotPaused {
-        if (_token == address(0)) {
-            require(msg.value > 0, "No CELO sent");
-            tokenBalances[address(0)] += msg.value;
-            emit Deposit(address(0), msg.value, msg.sender);
-        } else {
+    function deposit(address _token, uint256 _amount) external {
             require(_amount > 0, "Amount must be positive");
+        
             IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
             tokenBalances[_token] += _amount;
+        
             emit Deposit(_token, _amount, msg.sender);
-        }
     }
 
-    function agentWithdraw(
-        uint256 _agentId,
-        address _token,
-        address _recipient,
-        uint256 _amount
-    ) external whenNotPaused nonReentrant returns (bool) {
-        (,,,address agentWallet,,,,,bool isActive) = agentRegistry.agents(_agentId);
-        require(isActive, "Agent not active");
-        require(agentWallet == msg.sender, "Not agent wallet");
+    function agentWithdraw(uint256 _agentId, address _token, address _recipient, uint256 _amount) external nonReentrant {
         require(_amount > 0, "Amount must be positive");
-        require(_recipient != address(0), "Invalid recipient");
-        require(tokenBalances[_token] >= _amount, "Insufficient treasury balance");
+        require(tokenBalances[_token] >= _amount, "Insufficient balance");
 
-        require(
-            agentRegistry.isOperationAllowed(_agentId, "TRANSFER", _amount, _recipient),
-            "Operation not allowed"
-        );
-
-        _updateDailyWithdrawal(_agentId, _amount);
-
-        agentRegistry.recordAgentAction(_agentId, "TRANSFER", _amount, _recipient);
+        uint256 currentDay = block.timestamp / SECONDS_PER_DAY;
+        if (currentDay > agentLastResetDay[_agentId]) {
+            agentDailyWithdrawn[_agentId] = 0;
+            agentLastResetDay[_agentId] = currentDay;
+        }
 
         tokenBalances[_token] -= _amount;
+        agentDailyWithdrawn[_agentId] += _amount;
         
-        if (_token == address(0)) {
-            payable(_recipient).transfer(_amount);
-        } else {
             IERC20(_token).safeTransfer(_recipient, _amount);
-        }
-
         emit AgentWithdrawal(_agentId, _token, _recipient, _amount);
-        return true;
     }
 
-    function batchTransfer(
-        uint256 _agentId,
-        address _token,
-        address[] memory _recipients,
-        uint256[] memory _amounts
-    ) external whenNotPaused nonReentrant returns (bool) {
-        (,,,address agentWallet,,,,,bool isActive) = agentRegistry.agents(_agentId);
-        require(isActive, "Agent not active");
-        require(agentWallet == msg.sender, "Not agent wallet");
+    function batchTransfer(uint256 _agentId, address _token, address[] memory _recipients, uint256[] memory _amounts) external nonReentrant {
         require(_recipients.length == _amounts.length, "Array length mismatch");
-        require(_recipients.length > 0, "Empty recipients");
+        require(_recipients.length <= MAX_BATCH_SIZE, "Batch size too large");
 
         uint256 totalAmount = 0;
         for (uint256 i = 0; i < _amounts.length; i++) {
             totalAmount += _amounts[i];
         }
 
-        require(totalAmount > 0, "Total amount must be positive");
-        require(tokenBalances[_token] >= totalAmount, "Insufficient treasury balance");
+        require(tokenBalances[_token] >= totalAmount, "Insufficient balance");
 
-        require(
-            agentRegistry.isOperationAllowed(_agentId, "TRANSFER", totalAmount, address(0)),
-            "Operation not allowed"
-        );
-
-        _updateDailyWithdrawal(_agentId, totalAmount);
-
-        agentRegistry.recordAgentAction(_agentId, "TRANSFER", totalAmount, address(0));
+        uint256 currentDay = block.timestamp / SECONDS_PER_DAY;
+        if (currentDay > agentLastResetDay[_agentId]) {
+            agentDailyWithdrawn[_agentId] = 0;
+            agentLastResetDay[_agentId] = currentDay;
+        }
 
         tokenBalances[_token] -= totalAmount;
+        agentDailyWithdrawn[_agentId] += totalAmount;
         
         for (uint256 i = 0; i < _recipients.length; i++) {
-            require(_recipients[i] != address(0), "Invalid recipient");
-            require(_amounts[i] > 0, "Amount must be positive");
-            
-            if (_token == address(0)) {
-                payable(_recipients[i]).transfer(_amounts[i]);
-            } else {
                 IERC20(_token).safeTransfer(_recipients[i], _amounts[i]);
-            }
         }
 
         emit BatchTransfer(_agentId, _token, _recipients, _amounts);
-        return true;
     }
 
-    function getBalance(address _token) external view returns (uint256) {
-        return tokenBalances[_token];
-    }
-
-    function scheduleTimeLocked(
-        uint256 _agentId,
-        address _token,
-        address _recipient,
-        uint256 _amount,
-        uint256 _unlockTime
-    ) external whenNotPaused returns (uint256) {
-        (,,,address agentWallet,,,,,bool isActive) = agentRegistry.agents(_agentId);
-        require(isActive, "Agent not active");
-        require(agentWallet == msg.sender, "Not agent wallet");
+    function scheduleTimeLockedWithdrawal(uint256 _agentId, address _token, address _recipient, uint256 _amount, uint256 _timeLock) external {
         require(_amount > 0, "Amount must be positive");
-        require(_recipient != address(0), "Invalid recipient");
-        require(tokenBalances[_token] >= _amount, "Insufficient treasury balance");
-        require(_unlockTime > block.timestamp + MIN_TIME_LOCK, "Unlock time too soon");
-        require(_unlockTime <= block.timestamp + MAX_TIME_LOCK, "Unlock time too far");
-
-        require(
-            agentRegistry.isOperationAllowed(_agentId, "TRANSFER", _amount, _recipient),
-            "Operation not allowed"
-        );
+        require(_timeLock >= MIN_TIME_LOCK && _timeLock <= MAX_TIME_LOCK, "Invalid time lock");
+        require(tokenBalances[_token] >= _amount, "Insufficient balance");
 
         uint256 timeLockId = nextTimeLockId++;
         timeLockedWithdrawals[timeLockId] = TimeLockedWithdrawal({
@@ -182,91 +141,143 @@ contract AgentTreasury is Ownable, Pausable, ReentrancyGuard {
             token: _token,
             recipient: _recipient,
             amount: _amount,
-            unlockTime: _unlockTime,
+            unlockTime: block.timestamp + _timeLock,
             executed: false
         });
 
         tokenBalances[_token] -= _amount;
-
-        emit TimeLockedWithdrawalScheduled(timeLockId, _agentId, _token, _amount, _unlockTime);
-        return timeLockId;
+        emit TimeLockedWithdrawalScheduled(timeLockId, _agentId, _token, _amount, block.timestamp + _timeLock);
     }
 
-    function executeTimeLocked(uint256 _timeLockId) external whenNotPaused nonReentrant {
+    function executeTimeLockedWithdrawal(uint256 _timeLockId) external nonReentrant {
         TimeLockedWithdrawal storage withdrawal = timeLockedWithdrawals[_timeLockId];
-        require(withdrawal.agentId != 0, "Withdrawal not found");
         require(!withdrawal.executed, "Already executed");
-        require(block.timestamp >= withdrawal.unlockTime, "Not yet unlocked");
-        (,,,address agentWallet,,,,,bool isActive) = agentRegistry.agents(withdrawal.agentId);
-        require(agentWallet == msg.sender, "Not authorized");
+        require(block.timestamp >= withdrawal.unlockTime, "Time lock not expired");
 
         withdrawal.executed = true;
+        IERC20(withdrawal.token).safeTransfer(withdrawal.recipient, withdrawal.amount);
+        emit TimeLockedWithdrawalExecuted(_timeLockId, withdrawal.agentId, withdrawal.token, withdrawal.amount);
+    }
 
-        if (withdrawal.token == address(0)) {
-            payable(withdrawal.recipient).transfer(withdrawal.amount);
+    function createOrder(address _tokenIn, address _tokenOut, uint256 _amountIn, uint256 _amountOut, uint256 _deadline) external returns (uint256) {
+        require(_amountIn > 0 && _amountOut > 0, "Invalid amounts");
+        require(_deadline > block.timestamp, "Invalid deadline");
+
+        uint256 orderId = nextOrderId++;
+        orders[orderId] = Order({
+            orderId: orderId,
+            creator: msg.sender,
+            tokenIn: _tokenIn,
+            tokenOut: _tokenOut,
+            amountIn: _amountIn,
+            amountOut: _amountOut,
+            deadline: _deadline,
+            isFilled: false,
+            isCancelled: false
+        });
+
+        IERC20(_tokenIn).safeTransferFrom(msg.sender, address(this), _amountIn);
+        emit OrderCreated(orderId, msg.sender, _tokenIn, _tokenOut, _amountIn, _amountOut);
+        return orderId;
+    }
+
+    function fillOrder(uint256 _orderId, uint256 _amountIn) external nonReentrant {
+        Order storage order = orders[_orderId];
+        require(!order.isFilled && !order.isCancelled, "Order not available");
+        require(block.timestamp <= order.deadline, "Order expired");
+        require(_amountIn <= order.amountIn, "Amount exceeds order");
+
+        uint256 amountOut = (_amountIn * order.amountOut) / order.amountIn;
+        require(IERC20(order.tokenOut).balanceOf(address(this)) >= amountOut, "Insufficient liquidity");
+
+        IERC20(order.tokenIn).safeTransferFrom(msg.sender, address(this), _amountIn);
+        IERC20(order.tokenOut).safeTransfer(msg.sender, amountOut);
+
+        if (_amountIn == order.amountIn) {
+            order.isFilled = true;
         } else {
-            IERC20(withdrawal.token).safeTransfer(withdrawal.recipient, withdrawal.amount);
+            order.amountIn -= _amountIn;
+            order.amountOut -= amountOut;
         }
 
-        emit TimeLockedWithdrawalExecuted(_timeLockId);
+        emit OrderFilled(_orderId, msg.sender, _amountIn, amountOut);
     }
 
-    function cancelTimeLocked(uint256 _timeLockId) external whenNotPaused {
-        TimeLockedWithdrawal storage withdrawal = timeLockedWithdrawals[_timeLockId];
-        require(withdrawal.agentId != 0, "Withdrawal not found");
-        require(!withdrawal.executed, "Already executed");
-        require(block.timestamp < withdrawal.unlockTime, "Already unlocked");
-        (,,,address agentWallet,,,,,bool isActive) = agentRegistry.agents(withdrawal.agentId);
-        require(agentWallet == msg.sender, "Not authorized");
+    function cancelOrder(uint256 _orderId) external {
+        Order storage order = orders[_orderId];
+        require(order.creator == msg.sender, "Not order creator");
+        require(!order.isFilled && !order.isCancelled, "Order not available");
 
-        tokenBalances[withdrawal.token] += withdrawal.amount;
-        withdrawal.executed = true;
+        order.isCancelled = true;
+        IERC20(order.tokenIn).safeTransfer(msg.sender, order.amountIn);
+        emit OrderCancelled(_orderId, msg.sender);
     }
 
-    function _updateDailyWithdrawal(uint256 _agentId, uint256 _amount) internal {
-        uint256 currentDay = block.timestamp / SECONDS_PER_DAY;
-        
-        if (currentDay > agentLastResetDay[_agentId]) {
-            agentDailyWithdrawn[_agentId] = 0;
-            agentLastResetDay[_agentId] = currentDay;
-        }
-        
-        agentDailyWithdrawn[_agentId] += _amount;
+    function createNFTSellOrder(address _nftContract, uint256 _tokenId, address _tokenOut, uint256 _amountOut, uint256 _deadline) external returns (uint256) {
+        require(authorizedNFTContracts[_nftContract], "NFT contract not authorized");
+        require(_amountOut > 0, "Invalid amount");
+        require(_deadline > block.timestamp, "Invalid deadline");
+
+        IERC721(_nftContract).transferFrom(msg.sender, address(this), _tokenId);
+
+        uint256 orderId = nextOrderId++;
+        nftOrders[orderId] = NFTOrder({
+            orderId: orderId,
+            creator: msg.sender,
+            nftContract: _nftContract,
+            tokenId: _tokenId,
+            tokenOut: _tokenOut,
+            amountOut: _amountOut,
+            deadline: _deadline,
+            isFilled: false,
+            isCancelled: false
+        });
+
+        emit NFTOrderCreated(orderId, msg.sender, _nftContract, _tokenId, _tokenOut, _amountOut);
+        return orderId;
     }
 
-    function getAgentDailyWithdrawal(uint256 _agentId) external view returns (
-        uint256 withdrawn,
-        uint256 lastResetDay,
-        uint256 dailyLimit
-    ) {
-        (,,,,uint256 agentDailyLimit,,,,) = agentRegistry.agents(_agentId);
-        return (
-            agentDailyWithdrawn[_agentId],
-            agentLastResetDay[_agentId],
-            agentDailyLimit
-        );
+    function fillNFTOrder(uint256 _orderId) external nonReentrant {
+        NFTOrder storage order = nftOrders[_orderId];
+        require(!order.isFilled && !order.isCancelled, "Order not available");
+        require(block.timestamp <= order.deadline, "Order expired");
+        require(IERC20(order.tokenOut).balanceOf(address(this)) >= order.amountOut, "Insufficient liquidity");
+
+        IERC20(order.tokenOut).safeTransferFrom(msg.sender, address(this), order.amountOut);
+        IERC721(order.nftContract).transferFrom(address(this), msg.sender, order.tokenId);
+
+        order.isFilled = true;
+        emit NFTOrderFilled(_orderId, msg.sender, order.nftContract, order.tokenId, order.amountOut);
     }
 
-    function emergencyWithdraw(
-        address _token,
-        address _recipient,
-        uint256 _amount
-    ) external onlyOwner {
-        require(_amount > 0, "Amount must be positive");
-        require(_recipient != address(0), "Invalid recipient");
-        require(tokenBalances[_token] >= _amount, "Insufficient balance");
+    function cancelNFTOrder(uint256 _orderId) external {
+        NFTOrder storage order = nftOrders[_orderId];
+        require(order.creator == msg.sender, "Not order creator");
+        require(!order.isFilled && !order.isCancelled, "Order not available");
 
-        tokenBalances[_token] -= _amount;
-        
-        if (_token == address(0)) {
-            payable(_recipient).transfer(_amount);
-        } else {
-            IERC20(_token).safeTransfer(_recipient, _amount);
-        }
+        order.isCancelled = true;
+        IERC721(order.nftContract).transferFrom(address(this), msg.sender, order.tokenId);
+        emit NFTOrderCancelled(_orderId, msg.sender);
     }
 
-    receive() external payable {
-        tokenBalances[address(0)] += msg.value;
-        emit Deposit(address(0), msg.value, msg.sender);
+    function authorizeNFTContract(address _nftContract, bool _authorized) external onlyOwner {
+        authorizedNFTContracts[_nftContract] = _authorized;
+        emit NFTContractAuthorized(_nftContract, _authorized);
+    }
+
+    function getOrder(uint256 _orderId) external view returns (Order memory) {
+        return orders[_orderId];
+    }
+
+    function getNFTOrder(uint256 _orderId) external view returns (NFTOrder memory) {
+        return nftOrders[_orderId];
+    }
+
+    function emergencyPause() external onlyOwner {
+        _pause();
+    }
+
+    function emergencyUnpause() external onlyOwner {
+        _unpause();
     }
 }

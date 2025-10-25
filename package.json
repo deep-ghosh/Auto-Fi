@@ -5,13 +5,18 @@
   "private": true,
   "workspaces": [
     "packages/contracts",
-    "packages/core"
+    "packages/core",
+    "packages/api"
   ],
   "scripts": {
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
     "dev": "npm run dev --workspaces",
-    "clean": "npm run clean --workspaces && rm -rf node_modules"
+    "clean": "npm run clean --workspaces && rm -rf node_modules",
+    "api:dev": "cd packages/api && npm run dev",
+    "api:build": "cd packages/api && npm run build",
+    "api:start": "cd packages/api && npm start",
+    "start:api": "npm run api:start"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

@@ -103,6 +103,46 @@ const result = await callContractFunction(config, 'AgentRegistry', address, 'get
 - ✅ Testing integration
 - ✅ TypeScript support
 
+## 🌐 REST API
+
+The project includes a comprehensive REST API for automated blockchain processes:
+
+```bash
+# Start the API server
+npm run api:dev
+
+# API Documentation: http://localhost:3000/api-docs
+# Health Check: http://localhost:3000/health
+```
+
+**API Features:**
+- ✅ Smart contract deployment and management
+- ✅ AI agent creation and execution
+- ✅ NFT minting and operations
+- ✅ Transaction security analysis
+- ✅ Batch operations support
+- ✅ Comprehensive Swagger documentation
+- ✅ Rate limiting and security
+- ✅ Health monitoring
+
+**Example API Usage:**
+```typescript
+// Deploy a contract via API
+const response = await fetch('http://localhost:3000/api/v1/contracts/deploy', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    network: 'alfajores',
+    privateKey: '0x...',
+    contractName: 'AgentRegistry',
+    constructorArgs: []
+  })
+});
+
+const result = await response.json();
+console.log('Contract deployed:', result.data.contractAddress);
+```
+
 ## 🤖 Available Agents
 
 ### 1. Treasury Manager Agent
