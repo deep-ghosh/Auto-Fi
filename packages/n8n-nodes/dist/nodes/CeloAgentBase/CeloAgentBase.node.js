@@ -136,15 +136,14 @@ class CeloAgentBase {
                         agentTreasury: celoCredentials.agentTreasuryAddress,
                         donationSplitter: celoCredentials.donationSplitterAddress,
                         yieldAggregator: celoCredentials.yieldAggregatorAddress,
-                        governanceProxy: celoCredentials.governanceProxyAddress,
+                        masterTrading: celoCredentials.masterTradingAddress,
                         attendanceNFT: celoCredentials.attendanceNFTAddress,
                     });
                 }
-                // Initialize LLM
-                const llm = LLMIntegration.createOpenAIProvider(openAICredentials.apiKey, openAICredentials.model);
-                const llmIntegration = new LLMIntegration(llm);
+                // Initialize decision engine
+                const decisionEngine = new core_1.DecisionEngine();
                 // Initialize agent engine
-                const agentEngine = new core_1.AgentEngine(client, llmIntegration);
+                const agentEngine = new core_1.AgentEngine(client, decisionEngine);
                 // Create agent config
                 const agentConfig = {
                     goal,

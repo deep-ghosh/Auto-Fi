@@ -71,11 +71,11 @@ export class CeloWalletApi implements ICredentialType {
       description: 'Address of the deployed YieldAggregator contract',
     },
     {
-      displayName: 'Governance Proxy Address',
-      name: 'governanceProxyAddress',
+      displayName: 'Master Trading Address',
+      name: 'masterTradingAddress',
       type: 'string',
       default: '',
-      description: 'Address of the deployed GovernanceProxy contract',
+      description: 'Address of the deployed MasterTradingContract',
     },
     {
       displayName: 'Attendance NFT Address',

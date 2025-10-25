@@ -141,15 +141,14 @@ class TreasuryManagerAgent {
                         agentTreasury: celoCredentials.agentTreasuryAddress,
                         donationSplitter: celoCredentials.donationSplitterAddress,
                         yieldAggregator: celoCredentials.yieldAggregatorAddress,
-                        governanceProxy: celoCredentials.governanceProxyAddress,
+                        masterTrading: celoCredentials.masterTradingAddress,
                         attendanceNFT: celoCredentials.attendanceNFTAddress,
                     });
                 }
-                // Initialize LLM
-                const llm = core_1.LLMIntegration.createOpenAIProvider(openAICredentials.apiKey, openAICredentials.model);
-                const llmIntegration = new core_1.LLMIntegration(llm);
+                // Initialize decision engine
+                const decisionEngine = new core_1.DecisionEngine();
                 // Initialize agent engine
-                const agentEngine = new core_1.AgentEngine(client, llmIntegration);
+                const agentEngine = new core_1.AgentEngine(client, decisionEngine);
                 // Create agent config with treasury-specific goal
                 const goal = `Manage treasury with target allocation: ${targetAllocation.cusdPercentage}% cUSD, ${targetAllocation.ceurPercentage}% cEUR, ${targetAllocation.celoPercentage}% CELO. Rebalance when deviation exceeds ${rebalanceThreshold}%.`;
                 const constraints = `Daily limit: ${dailyLimit} CELO, Per-tx limit: ${perTxLimit} CELO. Only execute swaps through approved protocols. Maintain minimum liquidity of 10% in each token.`;

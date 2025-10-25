@@ -5,7 +5,7 @@ import {
   INodeTypeDescription,
   NodeOperationError,
 } from 'n8n-workflow';
-import { CeloClient, LLMIntegration, AgentEngine, AgentConfig } from '@celo-ai-agents/core';
+import { CeloClient, DecisionEngine, AgentEngine, AgentConfig } from '@celo-ai-agents/core';
 
 export class DonationSplitterAgent implements INodeType {
   description: INodeTypeDescription = {
@@ -188,24 +188,20 @@ export class DonationSplitterAgent implements INodeType {
         // Set contract addresses if provided
         if (celoCredentials.agentRegistryAddress) {
           client.setContractAddresses({
-            agentRegistry: celoCredentials.agentRegistryAddress as string,
-            agentTreasury: celoCredentials.agentTreasuryAddress as string,
-            donationSplitter: celoCredentials.donationSplitterAddress as string,
-            yieldAggregator: celoCredentials.yieldAggregatorAddress as string,
-            governanceProxy: celoCredentials.governanceProxyAddress as string,
-            attendanceNFT: celoCredentials.attendanceNFTAddress as string,
+            agentRegistry: celoCredentials.agentRegistryAddress as `0x${string}`,
+            agentTreasury: celoCredentials.agentTreasuryAddress as `0x${string}`,
+            donationSplitter: celoCredentials.donationSplitterAddress as `0x${string}`,
+            yieldAggregator: celoCredentials.yieldAggregatorAddress as `0x${string}`,
+            masterTrading: celoCredentials.masterTradingAddress as `0x${string}`,
+            attendanceNFT: celoCredentials.attendanceNFTAddress as `0x${string}`,
           });
         }
 
-        // Initialize LLM
-        const llm = LLMIntegration.createOpenAIProvider(
-          openAICredentials.apiKey as string,
-          openAICredentials.model as string
-        );
-        const llmIntegration = new LLMIntegration(llm);
+        // Initialize decision engine
+        const decisionEngine = new DecisionEngine();
 
         // Initialize agent engine
-        const agentEngine = new AgentEngine(client, llmIntegration);
+        const agentEngine = new AgentEngine(client, decisionEngine);
 
         // Create agent config with donation-specific goal
         const recipientsList = splitConfig.map(r => `${r.name || r.address}: ${r.percentage}%`).join(', ');

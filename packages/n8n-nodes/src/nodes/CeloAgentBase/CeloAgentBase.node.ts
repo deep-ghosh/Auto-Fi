@@ -145,24 +145,20 @@ export class CeloAgentBase implements INodeType {
         // Set contract addresses if provided
         if (celoCredentials.agentRegistryAddress) {
           client.setContractAddresses({
-            agentRegistry: celoCredentials.agentRegistryAddress as string,
-            agentTreasury: celoCredentials.agentTreasuryAddress as string,
-            donationSplitter: celoCredentials.donationSplitterAddress as string,
-            yieldAggregator: celoCredentials.yieldAggregatorAddress as string,
-            governanceProxy: celoCredentials.governanceProxyAddress as string,
-            attendanceNFT: celoCredentials.attendanceNFTAddress as string,
+            agentRegistry: celoCredentials.agentRegistryAddress as `0x${string}`,
+            agentTreasury: celoCredentials.agentTreasuryAddress as `0x${string}`,
+            donationSplitter: celoCredentials.donationSplitterAddress as `0x${string}`,
+            yieldAggregator: celoCredentials.yieldAggregatorAddress as `0x${string}`,
+            masterTrading: celoCredentials.masterTradingAddress as `0x${string}`,
+            attendanceNFT: celoCredentials.attendanceNFTAddress as `0x${string}`,
           });
         }
 
-        // Initialize LLM
-        const llm = LLMIntegration.createOpenAIProvider(
-          openAICredentials.apiKey as string,
-          openAICredentials.model as string
-        );
-        const llmIntegration = new LLMIntegration(llm);
+        // Initialize decision engine
+        const decisionEngine = new DecisionEngine();
 
         // Initialize agent engine
-        const agentEngine = new AgentEngine(client, llmIntegration);
+        const agentEngine = new AgentEngine(client, decisionEngine);
 
         // Create agent config
         const agentConfig: AgentConfig = {

@@ -179,15 +179,14 @@ class DonationSplitterAgent {
                         agentTreasury: celoCredentials.agentTreasuryAddress,
                         donationSplitter: celoCredentials.donationSplitterAddress,
                         yieldAggregator: celoCredentials.yieldAggregatorAddress,
-                        governanceProxy: celoCredentials.governanceProxyAddress,
+                        masterTrading: celoCredentials.masterTradingAddress,
                         attendanceNFT: celoCredentials.attendanceNFTAddress,
                     });
                 }
-                // Initialize LLM
-                const llm = core_1.LLMIntegration.createOpenAIProvider(openAICredentials.apiKey, openAICredentials.model);
-                const llmIntegration = new core_1.LLMIntegration(llm);
+                // Initialize decision engine
+                const decisionEngine = new core_1.DecisionEngine();
                 // Initialize agent engine
-                const agentEngine = new core_1.AgentEngine(client, llmIntegration);
+                const agentEngine = new core_1.AgentEngine(client, decisionEngine);
                 // Create agent config with donation-specific goal
                 const recipientsList = splitConfig.map(r => `${r.name || r.address}: ${r.percentage}%`).join(', ');
                 const goal = `Automatically split incoming donations among recipients: ${recipientsList}. Only process donations above ${minimumAmount} CELO. Support tokens: ${supportedTokens.join(', ')}.`;
