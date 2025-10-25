@@ -1,29 +1,41 @@
 {
-  "name": "celo-ai-agents",
-  "version": "1.0.0",
-  "description": "AI-powered autonomous agents for Celo blockchain operations",
-  "private": true,
-  "workspaces": [
-    "packages/contracts",
-    "packages/core",
-    "packages/api"
-  ],
+  "name": "celo-ai-automation-engine",
+  "version": "2.0.0",
+  "description": "Advanced AI-powered blockchain automation system with Gemini integration",
+  "main": "start.js",
+  "type": "module",
   "scripts": {
-    "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces",
-    "dev": "npm run dev --workspaces",
-    "clean": "npm run clean --workspaces && rm -rf node_modules",
-    "api:dev": "cd packages/api && npm run dev",
-    "api:build": "cd packages/api && npm run build",
-    "api:start": "cd packages/api && npm start",
-    "start:api": "npm run api:start"
+    "start": "node start.js",
+    "dev": "node --watch start.js",
+    "test": "cd Backend && npm test",
+    "test:integration": "cd Backend && npm run test:integration",
+    "test:all": "cd Backend && npm run test:all",
+    "build": "echo 'No build step required for Node.js'",
+    "lint": "cd Backend && npm run lint",
+    "lint:fix": "cd Backend && npm run lint:fix",
+    "clean": "cd Backend && npm run clean"
   },
-  "devDependencies": {
-    "@types/node": "^20.10.0",
-    "ts-node": "^10.9.0",
-    "typescript": "^5.3.0"
+  "keywords": [
+    "celo",
+    "blockchain",
+    "ai",
+    "automation",
+    "gemini",
+    "nft",
+    "defi",
+    "smart-contracts"
+  ],
+  "author": "Celo AI Agents Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
   },
-  "dependencies": {
-    "hardhat": "^3.0.9"
-  }
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/celo-ai-agents/automation-engine"
+  },
+  "bugs": {
+    "url": "https://github.com/celo-ai-agents/automation-engine/issues"
+  },
+  "homepage": "https://github.com/celo-ai-agents/automation-engine#readme"
 }
