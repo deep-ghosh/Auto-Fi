@@ -29,7 +29,7 @@ export default function CTA() {
         viewport={{ once: true }}
       >
         <motion.h2
-          className="text-4xl sm:text-5xl font-bold text-foreground mb-6 tracking-tight"
+          className="text-4xl sm:text-5xl font-bold text-foreground mb-6 tracking-tight hover:text-white transition-smooth"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
@@ -39,7 +39,7 @@ export default function CTA() {
         </motion.h2>
 
         <motion.p
-          className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed font-medium"
+          className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed font-medium hover:text-white transition-smooth"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}

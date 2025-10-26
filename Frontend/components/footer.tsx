@@ -26,8 +26,8 @@ export default function Footer() {
 
   const footerSections = [
     {
-      title: "Celo Automator",
-      items: [{ label: "Web3 automation platform for Celo blockchain", isDescription: true }],
+      title: "AutoFi",
+      items: [],
     },
     {
       title: "Product",
@@ -85,16 +85,12 @@ export default function Footer() {
               <ul className="space-y-3 text-sidebar-foreground/70">
                 {section.items.map((item, itemIndex) => (
                   <li key={itemIndex}>
-                    {item.isDescription ? (
-                      <p className="text-sm leading-relaxed font-medium">{item.label}</p>
-                    ) : (
-                      <Link
-                        href={item.href || "#"}
-                        className="hover:text-sidebar-foreground transition-smooth hover:translate-x-1 inline-block font-medium"
-                      >
-                        {item.label}
-                      </Link>
-                    )}
+                    <Link
+                      href={item.href || "#"}
+                      className="hover:text-white transition-smooth hover:translate-x-1 inline-block font-medium"
+                    >
+                      {item.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -112,7 +108,7 @@ export default function Footer() {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2">
               <Zap size={20} className="text-primary" />
-              <p className="text-sidebar-foreground/60 font-medium">&copy; 2025 Celo Automator. All rights reserved.</p>
+              <p className="text-sidebar-foreground/60 font-medium">&copy; 2025 AutoFi. All rights reserved.</p>
             </div>
             <div className="flex items-center gap-4">
               {socialLinks.map((social, index) => {

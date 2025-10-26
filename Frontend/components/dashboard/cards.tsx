@@ -23,15 +23,15 @@ export default function DashboardCards() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <h2 className="text-2xl font-bold text-foreground mb-2">No Automations Yet</h2>
-        <p className="text-muted-foreground">Create your first automation to get started</p>
+        <h2 className="text-2xl font-bold text-foreground mb-2 hover:text-white transition-smooth">No Automations Yet</h2>
+        <p className="text-muted-foreground hover:text-white/80 transition-smooth">Create your first automation to get started</p>
       </motion.div>
     )
   }
 
   return (
     <div className="mb-8">
-      <h2 className="text-2xl font-bold text-foreground mb-4">Your Automations</h2>
+      <h2 className="text-2xl font-bold text-foreground mb-4 hover:text-white transition-smooth">Your Automations</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {automations.map((automation, index) => (
           <AutomationCard

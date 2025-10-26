@@ -85,20 +85,15 @@ export default function TemplatesGrid({ selectedCategory }: TemplatesGridProps) 
         >
           <Card className="p-6 glass hover:glass-dark transition-smooth hover-lift group cursor-pointer border-border/50 relative overflow-hidden h-full flex flex-col">
             {template.trending && (
-              <motion.div
-                className="absolute top-4 right-4 px-3 py-1 bg-destructive/20 text-destructive text-xs font-semibold rounded-full flex items-center gap-1"
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ delay: index * 0.1 + 0.2, duration: 0.5 }}
-              >
+              <div className="absolute top-4 right-4 px-3 py-1 bg-destructive/20 text-destructive text-xs font-semibold rounded-full flex items-center gap-1">
                 <TrendingUp size={12} /> Trending
-              </motion.div>
+              </div>
             )}
 
-            <h3 className="text-lg font-bold text-foreground mb-2 group-hover:text-primary transition-smooth">
+            <h3 className="text-lg font-bold text-foreground mb-2 group-hover:text-white transition-smooth">
               {template.name}
             </h3>
-            <p className="text-muted-foreground text-sm mb-4 group-hover:text-foreground/80 transition-smooth flex-1">
+            <p className="text-muted-foreground text-sm mb-4 group-hover:text-white/80 transition-smooth flex-1">
               {template.description}
             </p>
 
@@ -120,7 +115,7 @@ export default function TemplatesGrid({ selectedCategory }: TemplatesGridProps) 
                 </Button>
               </motion.div>
               <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button size="sm" variant="outline" className="w-full bg-transparent">
+                <Button size="sm" variant="outline" className="w-full bg-transparent hover:text-white">
                   Preview
                 </Button>
               </motion.div>

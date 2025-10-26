@@ -2,7 +2,8 @@
 
 import { Card } from "@/components/ui/card"
 import { TrendingUp, CheckCircle, AlertCircle, Zap } from "lucide-react"
-import { motion } from "framer-motion"
+import { motion, useMotionValue, useTransform, animate } from "framer-motion"
+import { useEffect } from "react"
 
 interface StatItem {
   label: string
@@ -16,7 +17,7 @@ interface StatItem {
 const stats: StatItem[] = [
   {
     label: "Total Transactions",
-    value: "1,234",
+    value: 1234,
     trend: "↑ 12% this month",
     icon: TrendingUp,
     color: "border-l-primary",
@@ -24,7 +25,7 @@ const stats: StatItem[] = [
   },
   {
     label: "Success Rate",
-    value: "98.5%",
+    value: 98.5,
     trend: "↑ 2.3% improvement",
     icon: CheckCircle,
     color: "border-l-success",
@@ -32,7 +33,7 @@ const stats: StatItem[] = [
   },
   {
     label: "Total Volume",
-    value: "$234.5K",
+    value: 234500,
     trend: "↑ 45% this month",
     icon: Zap,
     color: "border-l-accent",
@@ -40,7 +41,7 @@ const stats: StatItem[] = [
   },
   {
     label: "Failed Executions",
-    value: "18",
+    value: 18,
     trend: "↓ 5 from last month",
     icon: AlertCircle,
     color: "border-l-destructive",
@@ -48,11 +49,26 @@ const stats: StatItem[] = [
   },
 ]
 
+function CountUp({ target, decimals = 0 }: { target: number; decimals?: number }) {
+  const count = useMotionValue(0)
+  const rounded = useTransform(count, (latest) => latest.toFixed(decimals))
+
+  useEffect(() => {
+    const controls = animate(count, target, { duration: 1.5, ease: "easeOut" })
+    return controls.stop
+  }, [target])
+
+  return <motion.span>{rounded}</motion.span>
+}
+
 export default function AnalyticsStats() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       {stats.map((stat, index) => {
         const Icon = stat.icon
+        const isCurrency = stat.label === "Total Volume"
+        const isPercentage = stat.label === "Success Rate"
+
         return (
           <motion.div
             key={index}
@@ -65,7 +81,9 @@ export default function AnalyticsStats() {
                 <div>
                   <p className="text-muted-foreground text-sm">{stat.label}</p>
                   <p className="text-3xl font-bold text-foreground mt-2 group-hover:text-primary transition-smooth">
-                    {stat.value}
+                    {isCurrency && "$"}
+                    <CountUp target={stat.value as number} decimals={isPercentage ? 1 : 0} />
+                    {isPercentage && "%"}
                   </p>
                   <p className="text-xs text-success mt-1">{stat.trend}</p>
                 </div>

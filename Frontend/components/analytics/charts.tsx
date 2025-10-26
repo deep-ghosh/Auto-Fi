@@ -55,21 +55,30 @@ export default function AnalyticsCharts() {
                   cy="50"
                   r="45"
                   fill="none"
-                  stroke="currentColor"
+                  stroke="#ffffff"
                   strokeWidth="8"
-                  className="text-success"
-                  strokeDasharray="282 314"
+                  className="opacity-10"
                 />
                 <circle
                   cx="50"
                   cy="50"
                   r="45"
                   fill="none"
-                  stroke="currentColor"
+                  stroke="#10b981"
                   strokeWidth="8"
-                  className="text-destructive"
-                  strokeDasharray="32 314"
-                  strokeDashoffset="-282"
+                  strokeLinecap="round"
+                  strokeDasharray="282.6 314"
+                  transform="rotate(-90 50 50)"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke="#ef4444"
+                  strokeWidth="8"
+                  strokeDasharray="4.71 314"
+                  transform="rotate(193.6 50 50)"
                 />
               </motion.svg>
               <motion.div

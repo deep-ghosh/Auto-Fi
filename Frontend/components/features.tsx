@@ -93,10 +93,10 @@ export default function Features() {
           <Zap size={16} className="text-primary" />
           <span className="text-sm font-semibold text-primary">Features</span>
         </motion.div>
-        <h2 className="text-4xl sm:text-5xl font-bold text-foreground mb-4 tracking-tight">
+        <h2 className="text-4xl sm:text-5xl font-bold text-foreground mb-4 tracking-tight hover:text-white transition-smooth">
           Powerful Automation Tools
         </h2>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-medium">
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-medium hover:text-white/80 transition-smooth">
           Everything you need to automate your Web3 workflows on Celo
         </p>
       </motion.div>
@@ -121,10 +121,10 @@ export default function Features() {
                 >
                   <Icon size={28} className="stroke-[1.5]" />
                 </motion.div>
-                <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-primary transition-smooth">
+                <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-white transition-smooth">
                   {feature.title}
                 </h3>
-                <p className="text-muted-foreground group-hover:text-foreground/80 transition-smooth font-medium leading-relaxed">
+                <p className="text-muted-foreground group-hover:text-white/80 transition-smooth font-medium leading-relaxed">
                   {feature.description}
                 </p>
               </Card>

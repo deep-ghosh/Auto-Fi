@@ -27,7 +27,10 @@ export default function Templates() {
           <h1 className="text-4xl font-bold text-foreground mb-2">Community Templates</h1>
           <p className="text-muted-foreground">Pre-built automation workflows ready to use</p>
         </motion.div>
-        <TemplatesFilter selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} />
+        <TemplatesFilter 
+          selectedCategory={selectedCategory} 
+          setSelectedCategory={setSelectedCategory}
+        />
         <TemplatesGrid selectedCategory={selectedCategory} />
       </motion.div>
     </main>

@@ -278,6 +278,13 @@ class ApiClient {
       }
     }
 
+    ws.onerror = (error) => {
+      // Silently handle WebSocket errors - backend may not be running
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        // Only log in development if explicitly needed for debugging
+      }
+    }
+
     this.wsConnection = ws
     return ws
   }

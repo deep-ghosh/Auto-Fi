@@ -84,9 +84,8 @@ export default function Navbar() {
               </motion.div>
               <div className="hidden sm:flex flex-col">
                 <span className="font-bold text-lg text-foreground transition-smooth">
-                  Celo Automator
+                  AutoFi
                 </span>
-                <span className="text-xs text-muted-foreground font-medium">Web3 Automation</span>
               </div>
             </Link>
 
@@ -95,7 +94,7 @@ export default function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="px-4 py-2 text-foreground/70 hover:text-foreground transition-smooth relative group rounded-full hover:bg-primary/10"
+                  className="px-4 py-2 text-foreground/70 hover:text-white transition-smooth relative group rounded-full hover:bg-primary/10"
                 >
                   <motion.span
                     className="relative z-10 font-medium text-sm"
@@ -212,7 +211,7 @@ export default function Navbar() {
                   >
                     <Link
                       href={item.href}
-                      className="block px-4 py-2.5 hover:bg-muted rounded-full transition-smooth text-foreground/80 hover:text-foreground font-medium"
+                      className="block px-4 py-2.5 hover:bg-muted rounded-full transition-smooth text-foreground/80 hover:text-white font-medium"
                       onClick={() => setIsOpen(false)}
                     >
                       {item.label}

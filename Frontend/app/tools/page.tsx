@@ -6,12 +6,14 @@ import { TransactionBuilder } from "@/components/blockchain/transaction-builder"
 import { SwapInterface } from "@/components/blockchain/swap-interface"
 import { NFTMinter } from "@/components/blockchain/nft-minter"
 import { DAOGovernance } from "@/components/blockchain/dao-governance"
+import PromptModal from "@/components/templates/prompt-modal"
 import { useStore } from "@/lib/store"
 import { useWallet } from "@/hooks/use-wallet"
 import { useRealtimeUpdates } from "@/hooks/use-realtime-updates"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 import { 
   Send, 
@@ -21,11 +23,13 @@ import {
   Zap, 
   TrendingUp,
   Activity,
-  Bell
+  Bell,
+  Sparkles
 } from "lucide-react"
 
 export default function Tools() {
   const [activeTab, setActiveTab] = useState("transactions")
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const { wallet } = useStore()
   const { wallet: walletState } = useWallet()
   const { isConnected, lastUpdate, updates } = useRealtimeUpdates()
@@ -104,7 +108,20 @@ export default function Tools() {
               <h1 className="text-4xl font-bold text-foreground mb-2">Blockchain Tools</h1>
               <p className="text-muted-foreground">Powerful tools for Web3 automation on Celo</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Button
+                  onClick={() => setIsPromptModalOpen(true)}
+                  className="bg-linear-to-r from-primary to-secondary hover:opacity-90 gap-2 font-semibold rounded-lg shadow-lg shadow-primary/30"
+                >
+                  <Sparkles size={18} />
+                  Create Automation
+                </Button>
+              </motion.div>
               <Badge variant={isConnected ? "default" : "secondary"}>
                 <Activity size={12} className="mr-1" />
                 {isConnected ? "Live" : "Offline"}
@@ -159,71 +176,63 @@ export default function Tools() {
           </div>
 
           {/* Tool Content */}
-          <div className="lg:col-span-3">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                <TabsTrigger value="swaps">Swaps</TabsTrigger>
-                <TabsTrigger value="nfts">NFTs</TabsTrigger>
-                <TabsTrigger value="dao">DAO</TabsTrigger>
-              </TabsList>
+          <div className="lg:col-span-3 space-y-6">
+            {activeTab === "transactions" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Send size={20} />
+                      Send Transactions
+                    </CardTitle>
+                    <CardDescription>
+                      Send CELO and tokens to any address on Celo
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <TransactionBuilder />
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
 
-              <TabsContent value="transactions" className="mt-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Send size={20} />
-                        Send Transactions
-                      </CardTitle>
-                      <CardDescription>
-                        Send CELO and tokens to any address on Celo
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <TransactionBuilder />
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </TabsContent>
+            {activeTab === "swaps" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <SwapInterface />
+              </motion.div>
+            )}
 
-              <TabsContent value="swaps" className="mt-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <SwapInterface />
-                </motion.div>
-              </TabsContent>
+            {activeTab === "nfts" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <NFTMinter />
+              </motion.div>
+            )}
 
-              <TabsContent value="nfts" className="mt-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <NFTMinter />
-                </motion.div>
-              </TabsContent>
-
-              <TabsContent value="dao" className="mt-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <DAOGovernance />
-                </motion.div>
-              </TabsContent>
-            </Tabs>
+            {activeTab === "dao" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <DAOGovernance />
+              </motion.div>
+            )}
           </div>
         </div>
       </motion.div>
+      <PromptModal open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen} />
     </main>
   )
 }

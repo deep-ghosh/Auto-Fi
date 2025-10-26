@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
+import { Sparkles } from "lucide-react"
 
 const categories = [
   { id: "all", label: "All Templates" },
@@ -34,7 +35,7 @@ export default function TemplatesFilter({ selectedCategory, setSelectedCategory 
           <Button
             onClick={() => setSelectedCategory(category.id)}
             variant={selectedCategory === category.id ? "default" : "outline"}
-            className={`transition-smooth ${selectedCategory === category.id ? "bg-primary hover:bg-primary/90" : "hover:bg-muted"}`}
+            className={`transition-smooth ${selectedCategory === category.id ? "bg-primary hover:bg-primary/90 " : "hover:bg-white/90 hover:text-white "}`}
           >
             {category.label}
           </Button>
