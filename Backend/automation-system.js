@@ -979,8 +979,42 @@ Response:
     };
   }
 
+  async handleGetSwapQuote(parameters) {
+    const { tokenIn, tokenOut, amountIn, slippage = 0.5 } = parameters;
+    
+    // Calculate estimated output based on simulated exchange rate
+    const exchangeRates = {
+      'CELO_cUSD': 1.2,
+      'cUSD_CELO': 0.83,
+      'CELO_cEUR': 1.35,
+      'cEUR_CELO': 0.74,
+      'cUSD_cEUR': 0.92,
+      'cEUR_cUSD': 1.09
+    };
+    
+    const pair = `${tokenIn}_${tokenOut}`;
+    const rate = exchangeRates[pair] || 1.0;
+    const estimatedAmountOut = parseFloat(amountIn) * rate;
+    const slippageAmount = estimatedAmountOut * (slippage / 100);
+    const minimumReceived = estimatedAmountOut - slippageAmount;
+    const priceImpact = 0.5; // Simulated price impact
+    
+    return {
+      success: true,
+      data: {
+        amountOut: estimatedAmountOut.toString(),
+        minimumReceived: minimumReceived.toString(),
+        priceImpact: priceImpact,
+        route: [tokenIn, tokenOut],
+        gasEstimate: '200000',
+        exchangeRate: rate.toString(),
+        slippage: slippage.toString()
+      }
+    };
+  }
+
   async executeSwapTokens(parameters, txHash) {
-    const { tokenIn, tokenOut, amountIn, amountOut, from } = parameters;
+    const { tokenIn, tokenOut, amountIn, amountOut, from, slippage = 0.5 } = parameters;
     const fromAddress = from || DEFAULT_ADDRESS;
 
     // Store in transaction history
@@ -991,7 +1025,15 @@ Response:
       value: amountIn,
       status: 'pending',
       type: 'TOKEN_SWAP',
-      realTransaction: this.config.enableRealBlockchainCalls
+      realTransaction: this.config.enableRealBlockchainCalls,
+      metadata: JSON.stringify({
+        tokenIn,
+        tokenOut,
+        amountIn,
+        amountOut,
+        slippage,
+        realTransaction: this.config.enableRealBlockchainCalls
+      })
     });
 
     const swapUpdate = {
@@ -1014,7 +1056,8 @@ Response:
     // Simulate token swap completion with real blockchain tracking
     setTimeout(async () => {
       try {
-        const finalAmountOut = (parseFloat(amountOut || '0') * 0.98).toString(); // 2% slippage
+        // Apply slippage to the output
+        const finalAmountOut = (parseFloat(amountOut || '0') * (1 - slippage / 100)).toString();
 
         // Update transaction history
         this.updateTransactionHistory(txHash, {
@@ -1296,7 +1339,7 @@ Response:
         // Validate function exists
         const validFunctions = this.blockchainAPI.getAvailableFunctions();
         const customFunctions = [
-          'mintNFT', 'swapTokens', 'daoProposal', 'daoGovernance', 'voteOnProposal',
+          'mintNFT', 'swapTokens', 'getSwapQuote', 'daoProposal', 'daoGovernance', 'voteOnProposal',
           'createProposal', 'executeProposal', 'getProposals', 'estimateGas'
         ];
         const isValidFunction = validFunctions.includes(functionName) || customFunctions.includes(functionName);
@@ -1330,6 +1373,9 @@ Response:
             break;
           case 'swapTokens':
             result = await this.executeSwapTokens(params, txHash);
+            break;
+          case 'getSwapQuote':
+            result = await this.handleGetSwapQuote(params);
             break;
           case 'daoProposal':
           case 'daoGovernance':
