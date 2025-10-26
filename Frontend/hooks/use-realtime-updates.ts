@@ -44,29 +44,25 @@ export function useRealtimeUpdates() {
         handleWebSocketMessage(data)
       })
       
-      ws.onopen = () => {
-        console.log('[useRealtimeUpdates] WebSocket connected successfully')
-        setIsConnected(true)
-      }
-      
-      ws.onclose = (event) => {
-        console.log('[useRealtimeUpdates] WebSocket disconnected', event.code, event.reason)
-        setIsConnected(false)
-        
-        // Attempt to reconnect after a delay if connection was lost unexpectedly
-        if (event.code !== 1000) { // Not a normal closure
-          setTimeout(() => {
-            console.log('[useRealtimeUpdates] Attempting to reconnect...')
-            connect()
-          }, 3000)
+      // Monitor connection state
+      const checkConnection = () => {
+        if (ws.readyState === WebSocket.OPEN) {
+          setIsConnected(true)
+        } else if (ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+          setIsConnected(false)
         }
       }
       
-      ws.onerror = (error) => {
-        console.error('[useRealtimeUpdates] WebSocket error:', error)
-        console.error('[useRealtimeUpdates] WebSocket state:', ws.readyState)
-        setIsConnected(false)
-      }
+      // Check connection immediately
+      checkConnection()
+      
+      // Set up periodic check
+      const connectionCheckInterval = setInterval(() => {
+        checkConnection()
+        if (ws.readyState === WebSocket.CLOSED) {
+          clearInterval(connectionCheckInterval)
+        }
+      }, 1000)
       
       wsRef.current = ws
       
