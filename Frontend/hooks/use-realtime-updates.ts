@@ -31,37 +31,55 @@ export function useRealtimeUpdates() {
 
   // Connect to WebSocket
   const connect = () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[useRealtimeUpdates] Already connected')
+      return
+    }
 
     try {
+      console.log('[useRealtimeUpdates] Connecting to WebSocket...')
+      
       // Connect to Backend WebSocket
       const ws = apiClient.connectWebSocket((data: any) => {
         handleWebSocketMessage(data)
       })
       
       ws.onopen = () => {
-        console.log('Backend WebSocket connected')
+        console.log('[useRealtimeUpdates] WebSocket connected successfully')
         setIsConnected(true)
       }
       
-      ws.onclose = () => {
-        console.log('Backend WebSocket disconnected')
+      ws.onclose = (event) => {
+        console.log('[useRealtimeUpdates] WebSocket disconnected', event.code, event.reason)
         setIsConnected(false)
+        
+        // Attempt to reconnect after a delay if connection was lost unexpectedly
+        if (event.code !== 1000) { // Not a normal closure
+          setTimeout(() => {
+            console.log('[useRealtimeUpdates] Attempting to reconnect...')
+            connect()
+          }, 3000)
+        }
       }
       
       ws.onerror = (error) => {
-        console.error('Backend WebSocket error:', error)
+        console.error('[useRealtimeUpdates] WebSocket error:', error)
+        console.error('[useRealtimeUpdates] WebSocket state:', ws.readyState)
         setIsConnected(false)
       }
       
       wsRef.current = ws
       
       // Also connect to blockchain integration for direct blockchain events
-      blockchainIntegration.connectWebSocket()
-      blockchainIntegration.addEventListener('transaction', handleTransactionUpdate)
-      blockchainIntegration.addEventListener('automation', handleAutomationUpdate)
-      blockchainIntegration.addEventListener('price', handlePriceUpdate)
-      blockchainIntegration.addEventListener('balance', handleBalanceUpdate)
+      try {
+        blockchainIntegration.connectWebSocket()
+        blockchainIntegration.addEventListener('transaction', handleTransactionUpdate)
+        blockchainIntegration.addEventListener('automation', handleAutomationUpdate)
+        blockchainIntegration.addEventListener('price', handlePriceUpdate)
+        blockchainIntegration.addEventListener('balance', handleBalanceUpdate)
+      } catch (blockchainError) {
+        console.warn('[useRealtimeUpdates] Blockchain integration connection failed:', blockchainError)
+      }
       
     } catch (error) {
       console.error('[useRealtimeUpdates] Failed to connect:', error)
@@ -199,11 +217,21 @@ export function useRealtimeUpdates() {
   // Auto-connect when wallet is connected
   useEffect(() => {
     if (wallet.isConnected && !isConnected) {
+      console.log('[useRealtimeUpdates] Wallet connected, connecting WebSocket...')
       connect()
     } else if (!wallet.isConnected && isConnected) {
+      console.log('[useRealtimeUpdates] Wallet disconnected, disconnecting WebSocket...')
       disconnect()
     }
-  }, [wallet.isConnected, isConnected])
+  }, [wallet.isConnected])
+
+  // Auto-connect on mount if wallet is already connected
+  useEffect(() => {
+    if (wallet.isConnected && !isConnected && !wsRef.current) {
+      console.log('[useRealtimeUpdates] Auto-connecting on mount...')
+      connect()
+    }
+  }, [])
 
   // Cleanup on unmount
   useEffect(() => {
