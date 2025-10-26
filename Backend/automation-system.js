@@ -273,6 +273,51 @@ export class AutomationSystem {
     }
   }
 
+  validateFunctionParameters(functionName, params) {
+    try {
+      switch (functionName) {
+        case 'mintNFT':
+          // NFT minting requires 'to' address
+          if (!params.to) {
+            params.to = DEFAULT_ADDRESS;
+          }
+          break;
+        case 'swapTokens':
+          // Token swap requires amounts
+          if (!params.amountIn) {
+            params.amountIn = '0';
+          }
+          break;
+        case 'daoGovernance':
+        case 'voteOnProposal':
+          // DAO functions need proposal ID
+          if (!params.proposalId) {
+            params.proposalId = '1';
+          }
+          if (!params.vote) {
+            params.vote = 'for';
+          }
+          break;
+        case 'getProposals':
+          // getProposals doesn't require specific params
+          break;
+        case 'estimateGas':
+          // Gas estimation requires 'to' address
+          if (!params.to) {
+            params.to = DEFAULT_ADDRESS;
+          }
+          if (!params.value) {
+            params.value = '0';
+          }
+          break;
+        default:
+          break;
+      }
+    } catch (error) {
+      console.warn(`Parameter validation warning for ${functionName}:`, error.message);
+    }
+  }
+
   async executeBlockchainFunction(functionName, parameters) {
     const functionMap = {
       'getTokenBalance': () => this.callCeloFunction('getTokenBalance', parameters),
@@ -370,6 +415,8 @@ export class AutomationSystem {
     this.app = express();
     this.setupMiddleware();
     this.setupRoutes();
+    this.setupAutomationEndpoints();
+    this.setupWalletEndpoints();
   }
 
   setupMiddleware() {
@@ -849,49 +896,9 @@ Response:
 
   async handleGetProposals(parameters) {
     try {
-      // Return mock DAO proposals
-      const mockProposals = [
-        {
-          id: '1',
-          title: 'Increase DAO Treasury by 50%',
-          description: 'Proposal to increase the DAO treasury allocation to support more ecosystem development',
-          proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbb',
-          startTime: Date.now() - 7 * 24 * 60 * 60 * 1000, // 7 days ago
-          endTime: Date.now() + 3 * 24 * 60 * 60 * 1000, // 3 days from now
-          forVotes: 8500,
-          againstVotes: 1500,
-          status: 'active',
-          actions: []
-        },
-        {
-          id: '2',
-          title: 'Deploy New DeFi Protocol',
-          description: 'Launch a new DeFi protocol for yield farming on Celo network',
-          proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbb',
-          startTime: Date.now() - 14 * 24 * 60 * 60 * 1000, // 14 days ago
-          endTime: Date.now() - 7 * 24 * 60 * 60 * 1000, // 7 days ago
-          forVotes: 7200,
-          againstVotes: 800,
-          status: 'passed',
-          actions: []
-        },
-        {
-          id: '3',
-          title: 'Community Grants Program',
-          description: 'Allocate funds for community-driven development and innovation projects',
-          proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbb',
-          startTime: Date.now() + 1 * 24 * 60 * 60 * 1000, // 1 day from now
-          endTime: Date.now() + 8 * 24 * 60 * 60 * 1000, // 8 days from now
-          forVotes: 0,
-          againstVotes: 0,
-          status: 'active',
-          actions: []
-        }
-      ];
-
       return {
         success: true,
-        data: mockProposals
+        data: []
       };
     } catch (error) {
       console.error('Get proposals error:', error);
@@ -902,15 +909,15 @@ Response:
     }
   }
 
-  // Transaction execution methods
   async executeMintNFT(parameters, txHash) {
-    const { recipient, tokenURI, contractAddress } = parameters;
+    const { recipient, tokenURI, contractAddress, from } = parameters;
+    const fromAddress = from || DEFAULT_ADDRESS;
 
     // Store in transaction history
     this.storeTransactionHistory({
       txHash,
-      fromAddress: DEFAULT_ADDRESS,
-      to: contractAddress,
+      fromAddress,
+      to: contractAddress || DEFAULT_ADDRESS,
       value: '0',
       status: 'pending',
       type: 'NFT_MINT',
@@ -922,7 +929,8 @@ Response:
       payload: {
         txHash,
         type: 'NFT_MINT',
-        recipient,
+        from: fromAddress,
+        recipient: recipient || fromAddress,
         tokenURI,
         contractAddress,
         status: 'pending',
@@ -947,7 +955,8 @@ Response:
           payload: {
             txHash,
             type: 'NFT_MINT',
-            recipient,
+            from: fromAddress,
+            recipient: recipient || fromAddress,
             tokenId: Math.floor(Math.random() * 100000),
             status: 'success',
             timestamp: Date.now()
@@ -971,12 +980,13 @@ Response:
   }
 
   async executeSwapTokens(parameters, txHash) {
-    const { tokenIn, tokenOut, amountIn, amountOut } = parameters;
+    const { tokenIn, tokenOut, amountIn, amountOut, from } = parameters;
+    const fromAddress = from || DEFAULT_ADDRESS;
 
     // Store in transaction history
     this.storeTransactionHistory({
       txHash,
-      fromAddress: DEFAULT_ADDRESS,
+      fromAddress,
       to: tokenIn,
       value: amountIn,
       status: 'pending',
@@ -989,6 +999,7 @@ Response:
       payload: {
         txHash,
         type: 'TOKEN_SWAP',
+        from: fromAddress,
         tokenIn,
         tokenOut,
         amountIn,
@@ -1003,7 +1014,7 @@ Response:
     // Simulate token swap completion with real blockchain tracking
     setTimeout(async () => {
       try {
-        const finalAmountOut = (parseFloat(amountOut) * 0.98).toString(); // 2% slippage
+        const finalAmountOut = (parseFloat(amountOut || '0') * 0.98).toString(); // 2% slippage
 
         // Update transaction history
         this.updateTransactionHistory(txHash, {
@@ -1017,6 +1028,7 @@ Response:
           payload: {
             txHash,
             type: 'TOKEN_SWAP',
+            from: fromAddress,
             tokenIn,
             tokenOut,
             amountIn,
@@ -1043,15 +1055,17 @@ Response:
   }
 
   async executeDAOGovernance(parameters, txHash) {
-    const { proposalId, vote, daoAddress } = parameters;
+    const { proposalId, vote, daoAddress, from } = parameters;
+    const fromAddress = from || DEFAULT_ADDRESS;
 
     const daoUpdate = {
       type: 'transaction_update',
       payload: {
         txHash,
         type: 'DAO_VOTE',
-        proposalId,
-        vote,
+        from: fromAddress,
+        proposalId: proposalId || '1',
+        vote: vote || 'for',
         daoAddress,
         status: 'pending',
         timestamp: Date.now()
@@ -1067,8 +1081,9 @@ Response:
         payload: {
           txHash,
           type: 'DAO_VOTE',
-          proposalId,
-          vote,
+          from: fromAddress,
+          proposalId: proposalId || '1',
+          vote: vote || 'for',
           status: 'success',
           votingPower: '1000',
           timestamp: Date.now()
@@ -1263,30 +1278,47 @@ Response:
 
     this.app.post('/api/blockchain/function-call', async (req, res) => {
       try {
-        const { functionName, parameters } = req.body;
+        const { functionName, parameters, context } = req.body;
 
+        // Validate function name
         if (!functionName) {
           return res.status(400).json({
             success: false,
             error: 'Function name is required',
-            code: 'MISSING_FUNCTION'
+            code: 'MISSING_FUNCTION',
+            example: {
+              functionName: 'getCELOBalance',
+              parameters: { address: '0x...' }
+            }
           });
         }
 
         // Validate function exists
         const validFunctions = this.blockchainAPI.getAvailableFunctions();
-        const isValidFunction = validFunctions.includes(functionName) ||
-          ['mintNFT', 'swapTokens', 'daoProposal', 'daoGovernance', 'voteOnProposal',
-           'createProposal', 'executeProposal', 'getProposals', 'estimateGas'].includes(functionName);
+        const customFunctions = [
+          'mintNFT', 'swapTokens', 'daoProposal', 'daoGovernance', 'voteOnProposal',
+          'createProposal', 'executeProposal', 'getProposals', 'estimateGas'
+        ];
+        const isValidFunction = validFunctions.includes(functionName) || customFunctions.includes(functionName);
 
         if (!isValidFunction) {
           return res.status(400).json({
             success: false,
             error: `Unknown function: ${functionName}`,
             code: 'INVALID_FUNCTION',
-            availableFunctions: validFunctions
+            availableFunctions: validFunctions,
+            customFunctions: customFunctions
           });
         }
+
+        // Ensure parameters is an object
+        const params = parameters || {};
+
+        // Validate and sanitize parameters based on function
+        this.validateFunctionParameters(functionName, params);
+
+        // Log the function call for debugging
+        console.log(`📞 Function call: ${functionName}`, JSON.stringify(params).substring(0, 100));
 
         let result;
         const txHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
@@ -1294,37 +1326,44 @@ Response:
         // Handle different function types with specific logic
         switch(functionName) {
           case 'mintNFT':
-            result = await this.executeMintNFT(parameters, txHash);
+            result = await this.executeMintNFT(params, txHash);
             break;
           case 'swapTokens':
-            result = await this.executeSwapTokens(parameters, txHash);
+            result = await this.executeSwapTokens(params, txHash);
             break;
           case 'daoProposal':
           case 'daoGovernance':
           case 'voteOnProposal':
           case 'createProposal':
           case 'executeProposal':
-            result = await this.executeDAOGovernance(parameters, txHash);
+            result = await this.executeDAOGovernance(params, txHash);
             break;
           case 'getProposals':
-            result = await this.handleGetProposals(parameters);
+            result = await this.handleGetProposals(params);
             break;
           case 'estimateGas':
-            result = await this.handleGasEstimation(parameters);
+            result = await this.handleGasEstimation(params);
             break;
           default:
-            result = await this.blockchainAPI.callFunction(functionName, parameters || {});
+            result = await this.blockchainAPI.callFunction(functionName, params, context);
         }
+
+        // Ensure result has proper structure
+        const responseData = result.data || result;
 
         res.json({
           success: true,
-          data: result.data || result
+          data: responseData,
+          functionName,
+          timestamp: new Date().toISOString()
         });
       } catch (error) {
+        console.error(`❌ Function call error for ${req.body.functionName}:`, error.message);
         res.status(500).json({
           success: false,
           error: error.message,
-          code: 'FUNCTION_ERROR'
+          code: 'FUNCTION_ERROR',
+          functionName: req.body.functionName
         });
       }
     });
@@ -1723,6 +1762,474 @@ Response:
       stats[table] = stmt.get().count;
     });
     return stats;
+  }
+
+  // ============================================================================
+  // AUTOMATION STORAGE HELPERS
+  // ============================================================================
+
+  getStoredAutomations() {
+    if (!this.automations) {
+      this.automations = [];
+    }
+    return this.automations;
+  }
+
+  getStoredAutomation(id) {
+    if (!this.automations) {
+      this.automations = [];
+    }
+    return this.automations.find(a => a.id === id);
+  }
+
+  storeAutomation(automation) {
+    if (!this.automations) {
+      this.automations = [];
+    }
+    this.automations.push(automation);
+  }
+
+  updateStoredAutomation(id, automation) {
+    if (!this.automations) {
+      this.automations = [];
+    }
+    const index = this.automations.findIndex(a => a.id === id);
+    if (index !== -1) {
+      this.automations[index] = automation;
+    }
+  }
+
+  deleteStoredAutomation(id) {
+    if (!this.automations) {
+      this.automations = [];
+    }
+    this.automations = this.automations.filter(a => a.id !== id);
+  }
+
+  async executeAutomationById(id, context) {
+    const automation = this.getStoredAutomation(id);
+    if (!automation) {
+      throw new Error('Automation not found');
+    }
+
+    // Execute based on type
+    let result;
+    switch (automation.type) {
+      case 'transaction':
+        result = await this.blockchainAPI.sendCELO(
+          automation.parameters.to,
+          automation.parameters.amount
+        );
+        break;
+      case 'swap':
+        result = await this.blockchainAPI.swapTokens(automation.parameters);
+        break;
+      case 'nft':
+        result = await this.blockchainAPI.mintNFT(automation.parameters);
+        break;
+      case 'dao':
+        result = await this.executeDAOGovernance(automation.parameters);
+        break;
+      default:
+        result = { message: 'Automation executed' };
+    }
+
+    // Update automation status
+    automation.lastExecution = {
+      timestamp: new Date().toISOString(),
+      status: 'success',
+      result
+    };
+    automation.progress = 100;
+    this.updateStoredAutomation(id, automation);
+
+    return result;
+  }
+
+  // ============================================================================
+  // WALLET INFO HELPERS
+  // ============================================================================
+
+  async getWalletInfo(address) {
+    try {
+      // Validate address format
+      if (!address || !address.startsWith('0x')) {
+        throw new Error('Invalid address format');
+      }
+
+      // Return wallet info - data should come from actual blockchain
+      return {
+        address,
+        balance: null,
+        network: this.config.network,
+        tokens: []
+      };
+    } catch (error) {
+      console.error('Error getting wallet info:', error);
+      return {
+        address,
+        balance: null,
+        network: this.config.network,
+        tokens: []
+      };
+    }
+  }
+
+  // ============================================================================
+  // AUTOMATION MANAGEMENT ENDPOINTS
+  // ============================================================================
+
+  setupAutomationEndpoints() {
+    // Get all automations
+    this.app.get('/api/automations', async (req, res) => {
+      try {
+        const automations = this.getStoredAutomations();
+        res.json({
+          success: true,
+          data: automations
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'AUTOMATIONS_ERROR'
+        });
+      }
+    });
+
+    // Create new automation
+    this.app.post('/api/automations', async (req, res) => {
+      try {
+        const { name, type, parameters, schedule, conditions } = req.body;
+
+        if (!name || !type) {
+          return res.status(400).json({
+            success: false,
+            error: 'Name and type are required',
+            code: 'MISSING_FIELDS'
+          });
+        }
+
+        const automation = {
+          id: 'auto_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+          name,
+          type,
+          status: 'active',
+          progress: 0,
+          parameters: parameters || {},
+          schedule: schedule || { frequency: 'once' },
+          conditions: conditions || {},
+          createdAt: new Date().toISOString(),
+          nextRun: new Date().toISOString(),
+          lastExecution: null
+        };
+
+        // Store automation
+        this.storeAutomation(automation);
+
+        res.json({
+          success: true,
+          data: automation
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'CREATE_AUTOMATION_ERROR'
+        });
+      }
+    });
+
+    // Get specific automation
+    this.app.get('/api/automations/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const automation = this.getStoredAutomation(id);
+
+        if (!automation) {
+          return res.status(404).json({
+            success: false,
+            error: 'Automation not found',
+            code: 'NOT_FOUND'
+          });
+        }
+
+        res.json({
+          success: true,
+          data: automation
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'GET_AUTOMATION_ERROR'
+        });
+      }
+    });
+
+    // Update automation
+    this.app.put('/api/automations/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        const automation = this.getStoredAutomation(id);
+        if (!automation) {
+          return res.status(404).json({
+            success: false,
+            error: 'Automation not found',
+            code: 'NOT_FOUND'
+          });
+        }
+
+        const updated = { ...automation, ...updates, id };
+        this.updateStoredAutomation(id, updated);
+
+        res.json({
+          success: true,
+          data: updated
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'UPDATE_AUTOMATION_ERROR'
+        });
+      }
+    });
+
+    // Delete automation
+    this.app.delete('/api/automations/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+        this.deleteStoredAutomation(id);
+
+        res.json({
+          success: true,
+          message: 'Automation deleted'
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'DELETE_AUTOMATION_ERROR'
+        });
+      }
+    });
+
+    // Pause automation
+    this.app.post('/api/automations/:id/pause', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const automation = this.getStoredAutomation(id);
+
+        if (!automation) {
+          return res.status(404).json({
+            success: false,
+            error: 'Automation not found',
+            code: 'NOT_FOUND'
+          });
+        }
+
+        automation.status = 'paused';
+        this.updateStoredAutomation(id, automation);
+
+        res.json({
+          success: true,
+          data: automation
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'PAUSE_ERROR'
+        });
+      }
+    });
+
+    // Resume automation
+    this.app.post('/api/automations/:id/resume', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const automation = this.getStoredAutomation(id);
+
+        if (!automation) {
+          return res.status(404).json({
+            success: false,
+            error: 'Automation not found',
+            code: 'NOT_FOUND'
+          });
+        }
+
+        automation.status = 'active';
+        this.updateStoredAutomation(id, automation);
+
+        res.json({
+          success: true,
+          data: automation
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'RESUME_ERROR'
+        });
+      }
+    });
+
+    // Execute automation
+    this.app.post('/api/automations/:id/execute', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { context } = req.body;
+
+        const automation = this.getStoredAutomation(id);
+        if (!automation) {
+          return res.status(404).json({
+            success: false,
+            error: 'Automation not found',
+            code: 'NOT_FOUND'
+          });
+        }
+
+        // Execute the automation
+        const result = await this.executeAutomationById(id, context);
+
+        res.json({
+          success: true,
+          data: result
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'EXECUTE_ERROR'
+        });
+      }
+    });
+
+    // Create automation with AI
+    this.app.post('/api/automations/ai-create', async (req, res) => {
+      try {
+        const { prompt, context } = req.body;
+
+        if (!prompt) {
+          return res.status(400).json({
+            success: false,
+            error: 'Prompt is required',
+            code: 'MISSING_PROMPT'
+          });
+        }
+
+        // Use AI to create automation
+        const result = await this.processNaturalLanguage(prompt, context || {});
+
+        res.json({
+          success: true,
+          data: result
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'AI_CREATE_ERROR'
+        });
+      }
+    });
+  }
+
+  // ============================================================================
+  // WALLET MANAGEMENT ENDPOINTS
+  // ============================================================================
+
+  setupWalletEndpoints() {
+    // Get wallet info
+    this.app.get('/api/wallet/:address', async (req, res) => {
+      try {
+        const { address } = req.params;
+
+        if (!address) {
+          return res.status(400).json({
+            success: false,
+            error: 'Address is required',
+            code: 'MISSING_ADDRESS'
+          });
+        }
+
+        const walletInfo = await this.getWalletInfo(address);
+
+        res.json({
+          success: true,
+          data: walletInfo
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'WALLET_INFO_ERROR'
+        });
+      }
+    });
+
+    // Get wallet balance
+    this.app.get('/api/wallet/:address/balance', async (req, res) => {
+      try {
+        const { address } = req.params;
+
+        if (!address) {
+          return res.status(400).json({
+            success: false,
+            error: 'Address is required',
+            code: 'MISSING_ADDRESS'
+          });
+        }
+
+        res.json({
+          success: true,
+          data: {
+            address,
+            balance: null,
+            tokens: []
+          }
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'BALANCE_ERROR'
+        });
+      }
+    });
+
+    // Get wallet tokens
+    this.app.get('/api/wallet/:address/tokens', async (req, res) => {
+      try {
+        const { address } = req.params;
+
+        if (!address) {
+          return res.status(400).json({
+            success: false,
+            error: 'Address is required',
+            code: 'MISSING_ADDRESS'
+          });
+        }
+
+        res.json({
+          success: true,
+          data: {
+            address,
+            tokens: [],
+            count: 0
+          }
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'TOKENS_ERROR'
+        });
+      }
+    });
   }
 
   start() {
