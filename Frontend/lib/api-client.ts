@@ -267,6 +267,18 @@ class ApiClient {
   // WebSocket connection for real-time updates
   connectWebSocket(onMessage: (data: any) => void): WebSocket {
     try {
+      // Check if already connected
+      if (this.wsConnection && this.wsConnection.readyState === WebSocket.OPEN) {
+        console.log('[WebSocket] Already connected, returning existing connection')
+        return this.wsConnection
+      }
+
+      // Close existing connection if any
+      if (this.wsConnection) {
+        console.log('[WebSocket] Closing existing connection')
+        this.wsConnection.close()
+      }
+
       // Construct WebSocket URL properly
       let wsUrl = this.baseUrl
 
@@ -285,8 +297,19 @@ class ApiClient {
 
       const ws = new WebSocket(fullWsUrl)
 
+      // Add connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          console.warn('[WebSocket] Connection timeout after 10 seconds')
+          ws.close()
+        }
+      }, 10000)
+
       ws.onopen = () => {
+        clearTimeout(connectionTimeout)
         console.log('[WebSocket] Connected successfully')
+        // Send initial message to confirm connection
+        ws.send(JSON.stringify({ type: 'ping', timestamp: new Date().toISOString() }))
       }
 
       ws.onmessage = (event) => {
@@ -300,10 +323,18 @@ class ApiClient {
 
       ws.onerror = (error) => {
         console.error('[WebSocket] Connection error:', error)
+        // Provide more helpful error information
+        if (!ws.readyState || ws.readyState === WebSocket.CONNECTING) {
+          console.warn('[WebSocket] Connection failed - backend may not be running or CORS issue')
+        }
       }
 
-      ws.onclose = () => {
-        console.log('[WebSocket] Connection closed')
+      ws.onclose = (event) => {
+        console.log('[WebSocket] Connection closed', event.code, event.reason)
+        // Clean up connection reference
+        if (this.wsConnection === ws) {
+          this.wsConnection = null
+        }
       }
 
       this.wsConnection = ws

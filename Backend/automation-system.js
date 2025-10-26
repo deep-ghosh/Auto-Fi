@@ -2248,6 +2248,15 @@ Response:
           const data = JSON.parse(message);
           console.log('📨 WebSocket message received:', data);
           
+          // Handle ping messages
+          if (data.type === 'ping') {
+            ws.send(JSON.stringify({
+              type: 'pong',
+              timestamp: new Date().toISOString()
+            }));
+            return;
+          }
+          
           // Echo back or process message
           ws.send(JSON.stringify({
             type: 'ack',

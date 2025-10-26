@@ -50,6 +50,55 @@ Build on Celo/
 │   └── hardhat.config.js    # Hardhat configuration
 └── docs/                    # Documentation
 ```
+## 📊 Live Deployment Status
+
+### ✅ Successfully Deployed Contracts on Celo Alfajores Testnet
+
+Our smart contracts are live and functional on the Celo testnet:
+
+**Contract Deployment Details:**
+- **AgentRegistry**: `0x28d19bce67566423719B2E471f578b765F4375BA`
+  - Transaction: `0xe0ea61d187d2626742554a58ce5ba1f3ac47b6c92ea673db678da0c03a4a2e13`
+  - Block: 60447833
+  - Gas Used: 1,793,298
+  - Status: ✅ Success
+
+- **AgentTreasury**: `0x52F3f3C2d1610454E6c3345b5E02DA767dC4f4D2`
+  - Transaction: `0x1ee24ac3f85a71dc0f3c1e2b2dc827fc894f0cd8e7463a82510b4fee37c980bb`
+  - Block: 60447840
+  - Gas Used: 2,468,811
+  - Status: ✅ Success
+
+- **AttendanceNFT**: `0xeD42659476443dE01d113322E156913EA056332F`
+  - Transaction: `0x0c622edcbb59a5d4f51624e2ed0d0ccda4476a76a01380743ec5dab79391774a`
+  - Block: 60447847
+  - Gas Used: 3,080,093
+  - Status: ✅ Success
+
+**View on Celo Explorer:**
+- [AgentRegistry Contract](https://alfajores.celoscan.io/address/0x28d19bce67566423719B2E471f578b765F4375BA)
+- [AgentTreasury Contract](https://alfajores.celoscan.io/address/0x52F3f3C2d1610454E6c3345b5E02DA767dC4f4D2)
+- [AttendanceNFT Contract](https://alfajores.celoscan.io/address/0xeD42659476443dE01d113322E156913EA056332F)
+
+**Transaction Verification:**
+All contracts have been successfully deployed with confirmed transactions showing:
+- ✅ Contract creation transactions confirmed
+- ✅ Gas optimization achieved (smaller contract sizes)
+- ✅ Modular architecture implemented
+- ✅ Independent contract management enabled
+
+## 📦 Architecture
+
+```
+/celo-ai-agents/
+├── packages/
+│   ├── contracts/          # Smart contracts (Solidity)
+│   └── core/              # Main library package (TypeScript)
+├── examples/              # Usage examples
+├── docs/                  # Developer documentation
+└── tests/                 # Integration tests
+```
+
 
 ## 🚀 Quick Start
 
