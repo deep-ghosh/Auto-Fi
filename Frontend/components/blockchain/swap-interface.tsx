@@ -1,8 +1,3 @@
-/**
- * Swap Interface Component
- * Allows users to swap tokens on Celo DEXs
- */
-
 "use client"
 
 import { useState, useEffect } from "react"

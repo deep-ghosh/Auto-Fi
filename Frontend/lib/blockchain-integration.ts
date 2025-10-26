@@ -446,15 +446,47 @@ class BlockchainIntegration {
     to: string
     value?: string
     data?: string
-  }): Promise<{ gasLimit: string; gasPrice: string }> {
-    const response = await apiClient.callBlockchainFunction({
-      functionName: 'estimateGas',
-      parameters: transaction
-    })
-    if (response.success && response.data) {
-      return response.data
+  }): Promise<{
+    gasLimit: string
+    gasPrice: string
+    breakdown?: any
+    estimatedCost?: string
+    gasPriceWei?: string
+    estimatedCostGwei?: string
+  }> {
+    try {
+      // Try direct API endpoint first
+      const response = await fetch(`${this.apiClient.baseUrl}/api/blockchain/estimate-gas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(transaction)
+      })
+
+      const data = await response.json()
+      if (data.success && data.data) {
+        const txData = data.data.transaction
+        return {
+          gasLimit: txData.gasLimit,
+          gasPrice: txData.gasPrice,
+          breakdown: txData.breakdown,
+          estimatedCost: txData.estimatedCost,
+          gasPriceWei: txData.gasPriceWei,
+          estimatedCostGwei: txData.estimatedCostGwei
+        }
+      }
+      throw new Error(data.error || 'Failed to estimate gas')
+    } catch (error) {
+      console.error('Gas estimation error:', error)
+      // Fallback to function call
+      const response = await this.apiClient.callBlockchainFunction({
+        functionName: 'estimateGas',
+        parameters: transaction
+      })
+      if (response.success && response.data) {
+        return response.data
+      }
+      throw new Error(response.error || 'Failed to estimate gas')
     }
-    throw new Error(response.error || 'Failed to estimate gas')
   }
 
   async getGasPrice(): Promise<{ standard: string; fast: string; instant: string }> {
@@ -690,25 +722,28 @@ class BlockchainIntegration {
 }
 
 // Create singleton instance
-export const blockchainIntegration = new BlockchainIntegration({
-  network: 'testnet',
-  rpcUrl: 'https://alfajores-forno.celo-testnet.org',
-  chainId: 44787,
-  contracts: {
-    agentRegistry: '0x0000000000000000000000000000000000000000',
-    agentTreasury: '0x0000000000000000000000000000000000000000',
-    donationSplitter: '0x0000000000000000000000000000000000000000',
-    yieldAggregator: '0x0000000000000000000000000000000000000000',
-    masterTrading: '0x0000000000000000000000000000000000000000',
-    attendanceNFT: '0x0000000000000000000000000000000000000000'
+export const blockchainIntegration = new BlockchainIntegration(
+  {
+    network: 'testnet',
+    rpcUrl: 'https://alfajores-forno.celo-testnet.org',
+    chainId: 44787,
+    contracts: {
+      agentRegistry: '0x0000000000000000000000000000000000000000',
+      agentTreasury: '0x0000000000000000000000000000000000000000',
+      donationSplitter: '0x0000000000000000000000000000000000000000',
+      yieldAggregator: '0x0000000000000000000000000000000000000000',
+      masterTrading: '0x0000000000000000000000000000000000000000',
+      attendanceNFT: '0x0000000000000000000000000000000000000000'
+    },
+    tokens: {
+      CELO: '0x0000000000000000000000000000000000000000',
+      cUSD: '0x874069Fa1Eb16D44d62F6a2e4c8B0C1C3b1C5C1C',
+      cEUR: '0x10c892A6ECfc32b4C1C6Cb8C1C3b1C5C1C3b1C5C1C',
+      cREAL: '0x00Be915B9dCf56a3CBE739D9B9c202ca692409EC'
+    }
   },
-  tokens: {
-    CELO: '0x0000000000000000000000000000000000000000',
-    cUSD: '0x874069Fa1Eb16D44d62F6a2e4c8B0C1C3b1C5C1C',
-    cEUR: '0x10c892A6ECfc32b4C1C6Cb8C1C3b1C5C1C3b1C5C1C',
-    cREAL: '0x00Be915B9dCf56a3CBE739D9B9c202ca692409EC'
-  }
-})
+  apiClient
+)
 
 export type {
   BlockchainConfig,

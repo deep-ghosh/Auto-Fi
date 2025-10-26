@@ -89,10 +89,15 @@ export function DAOGovernance() {
         parameters: {}
       })
       if (response.success && response.data) {
-        setProposals(response.data)
+        // Ensure data is an array
+        const proposalsData = Array.isArray(response.data) ? response.data : []
+        setProposals(proposalsData)
+      } else {
+        setProposals([])
       }
     } catch (error) {
       console.error("Failed to load proposals:", error)
+      setProposals([])
     } finally {
       setLoading(false)
     }
@@ -209,7 +214,7 @@ export function DAOGovernance() {
           <div className="flex items-center justify-center py-8">
             <Loader2 size={32} className="animate-spin" />
           </div>
-        ) : proposals.length === 0 ? (
+        ) : !Array.isArray(proposals) || proposals.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center">
               <p className="text-muted-foreground">No proposals found</p>

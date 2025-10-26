@@ -31,7 +31,7 @@ const automation = new AutomationSystem({
 
 // Process natural language
 const result = await automation.processNaturalLanguage(
-  'Send 100 cUSD to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb'
+  'Send 100 cUSD to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbb'
 );
 
 console.log(result);

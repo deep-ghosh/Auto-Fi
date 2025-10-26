@@ -266,27 +266,52 @@ class ApiClient {
 
   // WebSocket connection for real-time updates
   connectWebSocket(onMessage: (data: any) => void): WebSocket {
-    const wsUrl = this.baseUrl.replace('http', 'ws')
-    const ws = new WebSocket(`${wsUrl}/ws`)
-    
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        onMessage(data)
-      } catch (error) {
-        console.error('WebSocket message parsing error:', error)
-      }
-    }
+    try {
+      // Construct WebSocket URL properly
+      let wsUrl = this.baseUrl
 
-    ws.onerror = (error) => {
-      // Silently handle WebSocket errors - backend may not be running
-      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-        // Only log in development if explicitly needed for debugging
+      // Replace http/https with ws/wss
+      if (wsUrl.startsWith('https://')) {
+        wsUrl = wsUrl.replace('https://', 'wss://')
+      } else if (wsUrl.startsWith('http://')) {
+        wsUrl = wsUrl.replace('http://', 'ws://')
       }
-    }
 
-    this.wsConnection = ws
-    return ws
+      // Ensure no trailing slash
+      wsUrl = wsUrl.replace(/\/$/, '')
+
+      const fullWsUrl = `${wsUrl}/ws`
+      console.log('[WebSocket] Connecting to:', fullWsUrl)
+
+      const ws = new WebSocket(fullWsUrl)
+
+      ws.onopen = () => {
+        console.log('[WebSocket] Connected successfully')
+      }
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          onMessage(data)
+        } catch (error) {
+          console.error('[WebSocket] Message parsing error:', error)
+        }
+      }
+
+      ws.onerror = (error) => {
+        console.error('[WebSocket] Connection error:', error)
+      }
+
+      ws.onclose = () => {
+        console.log('[WebSocket] Connection closed')
+      }
+
+      this.wsConnection = ws
+      return ws
+    } catch (error) {
+      console.error('[WebSocket] Failed to create connection:', error)
+      throw error
+    }
   }
 
   // Enhanced WebSocket methods

@@ -76,6 +76,7 @@ export function TransactionBuilder({ onSuccess }: TransactionBuilderProps) {
 
   const estimateGas = async (data: TransactionFormData) => {
     try {
+      setLoading(true)
       const estimate = await blockchainIntegration.estimateGas({
         to: data.to,
         value: data.value,
@@ -84,8 +85,11 @@ export function TransactionBuilder({ onSuccess }: TransactionBuilderProps) {
       setGasEstimate(estimate)
       form.setValue('gasLimit', estimate.gasLimit)
       form.setValue('gasPrice', estimate.gasPrice)
+      console.log('Gas estimate:', estimate)
     } catch (error) {
       console.error('Failed to estimate gas:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -289,17 +293,41 @@ export function TransactionBuilder({ onSuccess }: TransactionBuilderProps) {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-3 bg-muted rounded-lg"
+                className="p-4 bg-muted rounded-lg space-y-3"
               >
-                <div className="text-sm">
+                <div className="text-sm font-semibold">Gas Estimation Details</div>
+                <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Gas Limit:</span>
-                    <span className="font-mono">{gasEstimate.gasLimit}</span>
+                    <span className="font-mono font-semibold">{gasEstimate.gasLimit}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Gas Price:</span>
-                    <span className="font-mono">{gasEstimate.gasPrice} gwei</span>
+                    <span className="font-mono font-semibold">{gasEstimate.gasPrice} gwei</span>
                   </div>
+                  {gasEstimate.estimatedCost && (
+                    <div className="flex justify-between">
+                      <span>Estimated Cost:</span>
+                      <span className="font-mono font-semibold">{gasEstimate.estimatedCost} ETH</span>
+                    </div>
+                  )}
+                  {gasEstimate.breakdown && (
+                    <div className="mt-3 pt-3 border-t border-border space-y-2">
+                      <div className="text-xs font-semibold text-muted-foreground">Price Breakdown:</div>
+                      <div className="flex justify-between text-xs">
+                        <span>Safe:</span>
+                        <span className="font-mono">{gasEstimate.breakdown.safe.gasPrice} gwei</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span>Fast:</span>
+                        <span className="font-mono">{gasEstimate.breakdown.fast.gasPrice} gwei</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span>Instant:</span>
+                        <span className="font-mono">{gasEstimate.breakdown.instant.gasPrice} gwei</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}

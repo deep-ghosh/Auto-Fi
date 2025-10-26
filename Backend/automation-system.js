@@ -11,8 +11,10 @@ import http from 'http';
 import { createPublicClient, createWalletClient, http as viem_http, parseEther } from 'viem';
 import { celo } from 'viem/chains';
 import { TransactionTracker } from './transaction-tracker.js';
+import { GasEstimationService } from './gas-estimation-service.js';
+import { EtherscanService } from './etherscan-service.js';
 
-const DEFAULT_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
+const DEFAULT_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbb';
 const CELO_TOKENS = {
   CELO: '0x0000000000000000000000000000000000000000',
   cUSD: '0x765DE816845861e75A25fCA122bb6898B8B1282a',
@@ -31,6 +33,8 @@ export class AutomationSystem {
     this.initializeDatabase();
     this.initializeBlockchainClients();
     this.initializeTransactionTracker();
+    this.initializeGasEstimationService();
+    this.initializeEtherscanService();
     this.initializeBlockchainAPI();
     this.initializeExpress();
   }
@@ -41,9 +45,10 @@ export class AutomationSystem {
       geminiApiKey: config.geminiApiKey || process.env.GEMINI_API_KEY || 'AIzaSyCKFLkomLb78CSBz4FA36VS9Vb789fZ8qc',
       privateKey: config.privateKey || process.env.PRIVATE_KEY,
       network: config.network || process.env.NETWORK || 'alfajores',
-      rpcUrl: config.rpcUrl || process.env.RPC_URL,
-      alchemyApiKey: config.alchemyApiKey || process.env.ALCHEMY_API_KEY,
+      rpcUrl: config.rpcUrl || process.env.RPC_URL || 'https://alfajores-forno.celo-testnet.org',
+      alchemyApiKey: config.alchemyApiKey || process.env.ALCHEMY_API_KEY || 'demo',
       alchemyPolicyId: config.alchemyPolicyId || process.env.ALCHEMY_POLICY_ID,
+      etherscanApiKey: config.etherscanApiKey || process.env.ETHERSCAN_API_KEY || 'demo',
       enableBlockchainIntegration: process.env.ENABLE_BLOCKCHAIN_INTEGRATION !== 'false',
       enableRealBlockchainCalls: process.env.ENABLE_REAL_BLOCKCHAIN_CALLS !== 'false',
       maxRiskScore: parseInt(process.env.MAX_RISK_SCORE) || 50,
@@ -172,6 +177,32 @@ export class AutomationSystem {
       console.log('✅ Transaction history database initialized');
     } catch (error) {
       console.error('❌ Failed to initialize transaction tracker:', error);
+    }
+  }
+
+  initializeGasEstimationService() {
+    try {
+      this.gasEstimationService = new GasEstimationService({
+        alchemyApiKey: this.config.alchemyApiKey,
+        etherscanApiKey: this.config.etherscanApiKey,
+        network: this.config.network,
+        rpcUrl: this.config.rpcUrl
+      });
+      console.log('✅ Gas estimation service initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize gas estimation service:', error);
+    }
+  }
+
+  initializeEtherscanService() {
+    try {
+      this.etherscanService = new EtherscanService({
+        apiKey: this.config.etherscanApiKey,
+        network: this.config.network
+      });
+      console.log('✅ Etherscan service initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize Etherscan service:', error);
     }
   }
 
@@ -781,6 +812,96 @@ Response:
     }
   }
 
+  async handleGasEstimation(parameters) {
+    try {
+      const { to, value = '0', data = '0x' } = parameters;
+
+      if (!to) {
+        return {
+          success: false,
+          error: 'Recipient address is required'
+        };
+      }
+
+      const gasData = await this.gasEstimationService.getComprehensiveGasData(to, value, data);
+
+      return {
+        success: true,
+        data: {
+          gasLimit: gasData.transaction.gasLimit,
+          gasPrice: gasData.transaction.gasPrice,
+          gasPriceWei: gasData.transaction.gasPriceWei,
+          estimatedCost: gasData.transaction.estimatedCost,
+          estimatedCostGwei: gasData.transaction.estimatedCostGwei,
+          breakdown: gasData.transaction.breakdown,
+          tracker: gasData.tracker,
+          timestamp: gasData.timestamp
+        }
+      };
+    } catch (error) {
+      console.error('Gas estimation error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  async handleGetProposals(parameters) {
+    try {
+      // Return mock DAO proposals
+      const mockProposals = [
+        {
+          id: '1',
+          title: 'Increase DAO Treasury by 50%',
+          description: 'Proposal to increase the DAO treasury allocation to support more ecosystem development',
+          proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbb',
+          startTime: Date.now() - 7 * 24 * 60 * 60 * 1000, // 7 days ago
+          endTime: Date.now() + 3 * 24 * 60 * 60 * 1000, // 3 days from now
+          forVotes: 8500,
+          againstVotes: 1500,
+          status: 'active',
+          actions: []
+        },
+        {
+          id: '2',
+          title: 'Deploy New DeFi Protocol',
+          description: 'Launch a new DeFi protocol for yield farming on Celo network',
+          proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbb',
+          startTime: Date.now() - 14 * 24 * 60 * 60 * 1000, // 14 days ago
+          endTime: Date.now() - 7 * 24 * 60 * 60 * 1000, // 7 days ago
+          forVotes: 7200,
+          againstVotes: 800,
+          status: 'passed',
+          actions: []
+        },
+        {
+          id: '3',
+          title: 'Community Grants Program',
+          description: 'Allocate funds for community-driven development and innovation projects',
+          proposer: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbb',
+          startTime: Date.now() + 1 * 24 * 60 * 60 * 1000, // 1 day from now
+          endTime: Date.now() + 8 * 24 * 60 * 60 * 1000, // 8 days from now
+          forVotes: 0,
+          againstVotes: 0,
+          status: 'active',
+          actions: []
+        }
+      ];
+
+      return {
+        success: true,
+        data: mockProposals
+      };
+    } catch (error) {
+      console.error('Get proposals error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // Transaction execution methods
   async executeMintNFT(parameters, txHash) {
     const { recipient, tokenURI, contractAddress } = parameters;
@@ -923,7 +1044,7 @@ Response:
 
   async executeDAOGovernance(parameters, txHash) {
     const { proposalId, vote, daoAddress } = parameters;
-    
+
     const daoUpdate = {
       type: 'transaction_update',
       payload: {
@@ -936,9 +1057,9 @@ Response:
         timestamp: Date.now()
       }
     };
-    
+
     this.broadcastToClients(daoUpdate);
-    
+
     // Simulate DAO vote completion
     setTimeout(() => {
       const completedUpdate = {
@@ -956,13 +1077,13 @@ Response:
       this.broadcastToClients(completedUpdate);
       console.log(`✅ DAO vote recorded: ${txHash}`);
     }, 3000);
-    
+
     return {
-      success: true,
       data: {
         txHash,
         status: 'pending',
-        message: 'DAO vote in progress'
+        proposalId,
+        vote
       }
     };
   }
@@ -1143,7 +1264,7 @@ Response:
     this.app.post('/api/blockchain/function-call', async (req, res) => {
       try {
         const { functionName, parameters } = req.body;
-        
+
         if (!functionName) {
           return res.status(400).json({
             success: false,
@@ -1151,10 +1272,25 @@ Response:
             code: 'MISSING_FUNCTION'
           });
         }
-        
+
+        // Validate function exists
+        const validFunctions = this.blockchainAPI.getAvailableFunctions();
+        const isValidFunction = validFunctions.includes(functionName) ||
+          ['mintNFT', 'swapTokens', 'daoProposal', 'daoGovernance', 'voteOnProposal',
+           'createProposal', 'executeProposal', 'getProposals', 'estimateGas'].includes(functionName);
+
+        if (!isValidFunction) {
+          return res.status(400).json({
+            success: false,
+            error: `Unknown function: ${functionName}`,
+            code: 'INVALID_FUNCTION',
+            availableFunctions: validFunctions
+          });
+        }
+
         let result;
         const txHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
-        
+
         // Handle different function types with specific logic
         switch(functionName) {
           case 'mintNFT':
@@ -1165,21 +1301,21 @@ Response:
             break;
           case 'daoProposal':
           case 'daoGovernance':
+          case 'voteOnProposal':
+          case 'createProposal':
+          case 'executeProposal':
             result = await this.executeDAOGovernance(parameters, txHash);
             break;
+          case 'getProposals':
+            result = await this.handleGetProposals(parameters);
+            break;
           case 'estimateGas':
-            result = {
-              success: true,
-              data: {
-                gasLimit: '100000',
-                gasPrice: '5000000000'
-              }
-            };
+            result = await this.handleGasEstimation(parameters);
             break;
           default:
             result = await this.blockchainAPI.callFunction(functionName, parameters || {});
         }
-        
+
         res.json({
           success: true,
           data: result.data || result
@@ -1306,6 +1442,195 @@ Response:
           success: false,
           error: error.message,
           code: 'PENDING_ERROR'
+        });
+      }
+    });
+
+    // Gas Estimation Endpoints
+    this.app.post('/api/blockchain/estimate-gas', async (req, res) => {
+      try {
+        const { to, value, data } = req.body;
+
+        if (!to) {
+          return res.status(400).json({
+            success: false,
+            error: 'Recipient address is required'
+          });
+        }
+
+        const gasData = await this.gasEstimationService.getComprehensiveGasData(to, value || '0', data || '0x');
+
+        res.json({
+          success: true,
+          data: gasData
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'GAS_ESTIMATION_ERROR'
+        });
+      }
+    });
+
+    // Get gas price
+    this.app.get('/api/blockchain/gas-price', async (req, res) => {
+      try {
+        const gasPrice = await this.gasEstimationService.getGasPriceAlchemy();
+        const gasTracker = await this.gasEstimationService.getGasTrackerEtherscan();
+
+        res.json({
+          success: true,
+          data: {
+            alchemy: gasPrice,
+            etherscan: gasTracker,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'GAS_PRICE_ERROR'
+        });
+      }
+    });
+
+    // Etherscan Account Analytics
+    this.app.get('/api/blockchain/account/:address', async (req, res) => {
+      try {
+        const { address } = req.params;
+        const analytics = await this.etherscanService.getAccountAnalytics(address);
+
+        if (!analytics) {
+          return res.status(404).json({
+            success: false,
+            error: 'Account not found'
+          });
+        }
+
+        res.json({
+          success: true,
+          data: analytics
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'ACCOUNT_ERROR'
+        });
+      }
+    });
+
+    // Get account balance
+    this.app.get('/api/blockchain/balance/:address', async (req, res) => {
+      try {
+        const { address } = req.params;
+        const balance = await this.etherscanService.getBalance(address);
+
+        res.json({
+          success: true,
+          data: { balance, address }
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'BALANCE_ERROR'
+        });
+      }
+    });
+
+    // Get account transactions
+    this.app.get('/api/blockchain/transactions/:address', async (req, res) => {
+      try {
+        const { address } = req.params;
+        const limit = parseInt(req.query.limit) || 50;
+        const transactions = await this.etherscanService.getTransactions(address);
+
+        res.json({
+          success: true,
+          data: transactions.slice(0, limit),
+          count: transactions.length
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'TRANSACTIONS_ERROR'
+        });
+      }
+    });
+
+    // Get token transfers
+    this.app.get('/api/blockchain/token-transfers/:address', async (req, res) => {
+      try {
+        const { address } = req.params;
+        const { contract } = req.query;
+        const transfers = await this.etherscanService.getTokenTransfers(address, contract);
+
+        res.json({
+          success: true,
+          data: transfers,
+          count: transfers.length
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'TOKEN_TRANSFERS_ERROR'
+        });
+      }
+    });
+
+    // Get transaction status
+    this.app.get('/api/blockchain/tx-status/:txHash', async (req, res) => {
+      try {
+        const { txHash } = req.params;
+        const status = await this.etherscanService.getTransactionStatus(txHash);
+
+        if (!status) {
+          return res.status(404).json({
+            success: false,
+            error: 'Transaction not found'
+          });
+        }
+
+        res.json({
+          success: true,
+          data: status
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'TX_STATUS_ERROR'
+        });
+      }
+    });
+
+    // Get contract ABI
+    this.app.get('/api/blockchain/contract-abi/:address', async (req, res) => {
+      try {
+        const { address } = req.params;
+        const abi = await this.etherscanService.getContractABI(address);
+
+        if (!abi) {
+          return res.status(404).json({
+            success: false,
+            error: 'Contract ABI not found'
+          });
+        }
+
+        res.json({
+          success: true,
+          data: abi
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          code: 'ABI_ERROR'
         });
       }
     });
