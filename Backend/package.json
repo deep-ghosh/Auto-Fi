@@ -1,7 +1,7 @@
 {
   "name": "celo-ai-automation-engine",
   "version": "2.0.0",
-  "description": "Advanced AI-powered blockchain automation system with Gemini integration",
+  "description": "Advanced AI-powered blockchain automation system with LangChain integration",
   "main": "automation-system.js",
   "type": "module",
   "scripts": {
@@ -20,6 +20,7 @@
     "blockchain",
     "ai",
     "automation",
+    "langchain",
     "gemini",
     "nft",
     "defi",
@@ -29,6 +30,10 @@
   "license": "MIT",
   "packageManager": "pnpm@10.11.0",
   "dependencies": {
+    "@langchain/core": "^0.3.0",
+    "@langchain/google-genai": "^0.0.24",
+    "@langchain/openai": "^0.3.0",
+    "@langchain/community": "^0.3.0",
     "@google/generative-ai": "^0.21.0",
     "better-sqlite3": "^11.6.0",
     "cors": "^2.8.5",
@@ -36,10 +41,12 @@
     "express": "^4.21.1",
     "express-rate-limit": "^7.4.1",
     "helmet": "^8.0.0",
+    "langchain": "^0.3.0",
     "node-fetch": "^2.7.0",
     "rollup": "^4.52.5",
     "viem": "^2.21.45",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@rollup/rollup-win32-x64-msvc": "^4.52.5",
