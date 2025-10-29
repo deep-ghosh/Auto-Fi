@@ -1,4 +1,4 @@
-# 🚀 Celo AI Automation Engine
+# AutoFi a AI Automation Engine
 
 A comprehensive AI-powered blockchain automation system built on the Celo network, featuring smart contract deployment, AI agent management, NFT operations, and DeFi integrations.
 
@@ -439,3 +439,4 @@ cd Backend && npm start
 **Built with ❤️ for the Celo ecosystem**
 
 For more information, visit our [documentation](docs/) or [GitHub repository](https://github.com/deep-ghosh/celo-automator).
+
