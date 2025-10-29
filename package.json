@@ -1,48 +1,41 @@
 {
-	"name": "n8n-nodes-celo-automate",
-	"version": "0.1.0",
-	"description": "",
-	"license": "MIT",
-	"homepage": "",
-	"keywords": [
-		"n8n-community-node-package" 
-	],
-	"author": {
-		"name": "Jit",
-		"email": "jit.nathdeb@gmail.com"
-	},
-	"scripts": {
-		"build": "n8n-node build",
-		"build:watch": "tsc --watch",
-		"dev": "n8n-node dev",
-		"lint": "n8n-node lint",
-		"lint:fix": "n8n-node lint --fix",
-		"release": "n8n-node release",
-		"prepublishOnly": "n8n-node prerelease"
-	},
-	"files": [
-		"dist"
-	],
-	"n8n": {
-		"n8nNodesApiVersion": 1,
-		"strict": true,
-		"credentials": [
-			"dist/credentials/GithubIssuesApi.credentials.js",
-			"dist/credentials/GithubIssuesOAuth2Api.credentials.js"
-		],
-		"nodes": [
-			"dist/nodes/GithubIssues/GithubIssues.node.js",
-			"dist/nodes/Example/Example.node.js"
-		]
-	},
-	"devDependencies": {
-		"@n8n/node-cli": "^0.13.0",
-		"eslint": "9.38.0",
-		"prettier": "3.6.2",
-		"release-it": "^19.0.5",
-		"typescript": "5.9.3"
-	},
-	"peerDependencies": {
-		"n8n-workflow": "*"
-	}
+  "name": "celo-ai-automation-engine",
+  "version": "2.0.0",
+  "description": "Advanced AI-powered blockchain automation system with Gemini integration",
+  "main": "start.js",
+  "type": "module",
+  "scripts": {
+    "start": "node start.js",
+    "dev": "node --watch start.js",
+    "test": "cd Backend && npm test",
+    "test:integration": "cd Backend && npm run test:integration",
+    "test:all": "cd Backend && npm run test:all",
+    "build": "echo 'No build step required for Node.js'",
+    "lint": "cd Backend && npm run lint",
+    "lint:fix": "cd Backend && npm run lint:fix",
+    "clean": "cd Backend && npm run clean"
+  },
+  "keywords": [
+    "celo",
+    "blockchain",
+    "ai",
+    "automation",
+    "gemini",
+    "nft",
+    "defi",
+    "smart-contracts"
+  ],
+  "author": "Celo AI Agents Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/celo-ai-agents/automation-engine"
+  },
+  "bugs": {
+    "url": "https://github.com/celo-ai-agents/automation-engine/issues"
+  },
+  "homepage": "https://github.com/celo-ai-agents/automation-engine#readme"
 }
